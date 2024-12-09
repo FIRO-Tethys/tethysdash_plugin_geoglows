@@ -1,0 +1,9 @@
+README.md
+setup.py
+tethysdash_plugin_geoglows.egg-info/PKG-INFO
+tethysdash_plugin_geoglows.egg-info/SOURCES.txt
+tethysdash_plugin_geoglows.egg-info/dependency_links.txt
+tethysdash_plugin_geoglows.egg-info/entry_points.txt
+tethysdash_plugin_geoglows.egg-info/not-zip-safe
+tethysdash_plugin_geoglows.egg-info/requires.txt
+tethysdash_plugin_geoglows.egg-info/top_level.txt

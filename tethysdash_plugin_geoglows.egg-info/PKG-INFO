@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: tethysdash-plugin-geoglows
+Version: 0.0.1
+Summary: Geoglows visualization plugins for tethysdash
+Home-page: https://github.com/FIRO-Tethys/tethysdash_plugin_usace
+Maintainer: Yue Sun
+Maintainer-email: ysun@aquaveo.com
+License: BSD
+Description-Content-Type: text/markdown

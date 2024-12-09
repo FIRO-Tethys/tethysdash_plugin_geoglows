@@ -1,0 +1,2 @@
+[intake.drivers]
+geoglows_plots = geoglows_visualizations.plots:Plots

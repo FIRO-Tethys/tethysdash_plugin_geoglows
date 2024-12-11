@@ -1,7 +1,7 @@
 from intake.source import base
 import geoglows
 import numpy as np
-from .utilities import get_plot_data, plot_flow_regime
+from .utilities import get_plot_data, flood_probabilities
 
 
 class Plots(base.DataSource):
@@ -12,9 +12,13 @@ class Plots(base.DataSource):
         "river_id": "text",
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
+            {"value": "forecast-stats", "label": "Forecast Statistics"},
+            {"value": "forecast-ensembles", "label": "Forecast Ensembles"},
             {"value": "historical", "label": "Historical"},
             {"value": "flow-duration", "label": "Flow Duration"},
-            {"value": "flow-regime", "label": "Flow Regime"},  # TODO need a variable year
+            {"value": "exceedance", "label": "Exceedance"},
+            {"value": "daily-averages", "label": "Daily Averages"},
+            {"value": "monthly-averages", "label": "Monthly Averages"},
         ]
     }
     visualization_group = "GEOGLOWS"
@@ -28,29 +32,41 @@ class Plots(base.DataSource):
         super(Plots, self).__init__(metadata=metadata)
 
     def read(self):
-        # Get plot data
-        if self.plot_name in ["flow-duration", "flow-regime"]:
-            df = get_plot_data(self.river_id, "historical")
-        else:
-            df = get_plot_data(self.river_id, "forecast")
+        df_return = get_plot_data(self.river_id, "return-periods")
 
-        # Draw the plot
         match self.plot_name:
             case "forecast":
-                plot = geoglows.plots.forecast(df)
+                df = get_plot_data(self.river_id, self.plot_name)
+                plot = geoglows.plots.forecast(df, rp_df=df_return)
+            case "forecast-stats":
+                df = get_plot_data(self.river_id, self.plot_name)
+                plot = geoglows.plots.forecast_stats(df, rp_df=df_return)
+            case "forecast-ensembles":
+                df = get_plot_data(self.river_id, self.plot_name)
+                plot = geoglows.plots.forecast_ensembles(df, rp_df=df_return)
             case "historical":
-                plot = geoglows.plots.retrospective(df)
+                df = get_plot_data(self.river_id, self.plot_name)
+                plot = geoglows.plots.retrospective(df, rp_df=df_return)
             case "flow-duration":
+                df = get_plot_data(self.river_id, "historical")
                 plot = geoglows.plots.flow_duration_curve(df)
-            case "flow-regime":
-                plot = plot_flow_regime(df, selected_year=2023, reach_id=self.river_id)
+            case "exceedance":
+                df_ensemble = get_plot_data(self.river_id, "forecast-ensembles")
+                df_return = get_plot_data(self.river_id, "return-periods")
+                plot = flood_probabilities(df_ensemble, df_return)
+            case "daily-averages":
+                df = get_plot_data(self.river_id, self.plot_name)
+                plot = geoglows.plots.daily_averages(df)
+            case "monthly-averages":
+                df = get_plot_data(self.river_id, self.plot_name)
+                plot = geoglows.plots.monthly_averages(df)
 
         data = []
         for trace in plot.data:
             trace_json = trace.to_plotly_json()
-            if isinstance(trace_json['x'], np.ndarray):
+            if 'x' in trace_json and isinstance(trace_json['x'], np.ndarray):
                 trace_json['x'] = trace_json['x'].tolist()
-            if isinstance(trace_json['y'], np.ndarray):
+            if 'y' in trace_json and isinstance(trace_json['y'], np.ndarray):
                 trace_json['y'] = trace_json['y'].tolist()
             data.append(trace_json)
         layout = plot.to_plotly_json()["layout"]

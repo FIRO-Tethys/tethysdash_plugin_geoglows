@@ -15,6 +15,7 @@ setup(
     entry_points={
         "intake.drivers": [
             "geoglows_plots = geoglows_visualizations.plots:Plots",
+            "geoglows_map = geoglows_visualizations.map:Map",
         ]
     },
     package_data={"": ["*.csv", "*.yml", "*.html"]},

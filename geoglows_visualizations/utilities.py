@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import geoglows
 import pandas as pd
 import plotly.graph_objects as go
+import json
 
 
 CACHE_DIR_PATH = "../geoglows_plots_cache"  # TODO how to put it under tethysdash_plugin_geoglows?
@@ -175,3 +176,28 @@ def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
         ))
     ])
     return fig
+
+
+def load_country_list():
+    filename = "/home/ysun/tethys-dev/tethysdash_plugin_geoglows/geoglows_visualizations/countries_extents.json"
+    country_list = []
+    with open(filename, "r") as file:
+        data = json.load(file)
+    for country_name, _extent in data.items():
+        country_list.append({"value": country_name, "label": country_name})
+    return country_list
+
+
+def load_country_extents():
+    filename = "/home/ysun/tethys-dev/tethysdash_plugin_geoglows/geoglows_visualizations/countries_extents.json"
+    country_extent = {}
+    with open(filename, "r") as file:
+        data = json.load(file)
+    for country_name, extent in data.items():
+        if extent:
+            extent[0] -= 1
+            extent[1] -= 1
+            extent[2] += 1
+            extent[3] += 1
+        country_extent[country_name] = extent
+    return country_extent

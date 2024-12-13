@@ -1,16 +1,19 @@
 from intake.source import base
+from .utilities import load_country_list, load_country_extents
 
 
 class Map(base.DataSource):
     container = "python"
     version = "0.0.1"
     name = "geoglows_map"
-    visualization_args = {}
+    visualization_args = {"country": load_country_list()}
     visualization_group = "GEOGLOWS"
     visualization_label = "GEOGLOWS Map"
     visualization_type = "map"
+    country_extents = load_country_extents()
 
-    def __init__(self, metadata=None):
+    def __init__(self, country="All Countries", metadata=None):
+        self.country = country
         super(Map, self).__init__(metadata=metadata)
 
     def read(self):
@@ -26,10 +29,8 @@ class Map(base.DataSource):
             },
         }
 
-        viewConfig = {
-            'center': [0, 20],
-            'zoom': 2,
-        }
+        viewConfig = self.get_viewConfig()
+        print(viewConfig)
 
         layers = [
             {
@@ -69,6 +70,9 @@ class Map(base.DataSource):
                         'type': 'ImageArcGISRest',
                         'props': {
                             'url': 'https://livefeeds3.arcgis.com/arcgis/rest/services/GEOGLOWS/GlobalWaterModel_Medium/MapServer',
+                            'params': {
+                                'layerDefs': f"0: rivercountry='{self.country}'" if self.country != "All Countries" else ''
+                            },
                         },
                     },
                     'name': 'Geoglows Streamflow',
@@ -91,3 +95,11 @@ class Map(base.DataSource):
             "layers": layers,
             "legend": legend
         }
+        
+    def get_viewConfig(self):
+        extent = Map.country_extents.get(self.country)
+        if extent:
+            viewConfig = {'projection': 'EPSG:4326', 'extent': extent, 'smoothExtentConstraint': True, 'showFullExtent': True}
+        else:
+            viewConfig = {'projection': 'EPSG:4326', 'center': [0, 20], 'zoom': 2}
+        return viewConfig

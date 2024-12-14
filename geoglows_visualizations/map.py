@@ -30,7 +30,6 @@ class Map(base.DataSource):
         }
 
         viewConfig = self.get_viewConfig()
-        print(viewConfig)
 
         layers = [
             {
@@ -69,9 +68,11 @@ class Map(base.DataSource):
                     'source': {
                         'type': 'ImageArcGISRest',
                         'props': {
-                            'url': 'https://livefeeds3.arcgis.com/arcgis/rest/services/GEOGLOWS/GlobalWaterModel_Medium/MapServer',
+                            'url':
+                                'https://livefeeds3.arcgis.com/arcgis/rest/services/GEOGLOWS/GlobalWaterModel_Medium/MapServer',
                             'params': {
-                                'layerDefs': f"0: rivercountry='{self.country}'" if self.country != "All Countries" else ''
+                                'layerDefs':
+                                    '' if self.country == "All Countries" else f"0: rivercountry='{self.country}'"
                             },
                         },
                     },
@@ -95,11 +96,16 @@ class Map(base.DataSource):
             "layers": layers,
             "legend": legend
         }
-        
+
     def get_viewConfig(self):
         extent = Map.country_extents.get(self.country)
         if extent:
-            viewConfig = {'projection': 'EPSG:4326', 'extent': extent, 'smoothExtentConstraint': True, 'showFullExtent': True}
+            viewConfig = {
+                'projection': 'EPSG:4326',
+                'extent': extent,
+                'smoothExtentConstraint': True,
+                'showFullExtent': True
+            }
         else:
             viewConfig = {'projection': 'EPSG:4326', 'center': [0, 20], 'zoom': 2}
         return viewConfig

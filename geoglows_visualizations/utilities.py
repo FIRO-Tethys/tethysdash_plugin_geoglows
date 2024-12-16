@@ -3,11 +3,13 @@ from datetime import datetime, timezone
 import geoglows
 import pandas as pd
 import plotly.graph_objects as go
+import json
 
 
-CACHE_DIR_PATH = "../geoglows_plots_cache"  # TODO how to put it under tethysdash_plugin_geoglows?
-if not os.path.exists(CACHE_DIR_PATH):
-    os.makedirs(CACHE_DIR_PATH)
+module_path = os.path.dirname(__file__)
+PLOTS_CACHE_PATH = os.path.join(module_path, "geoglows_plots_cache")
+if not os.path.exists(PLOTS_CACHE_PATH):
+    os.makedirs(PLOTS_CACHE_PATH)
 
 
 def get_plot_data(river_id, plot_name='forecast'):
@@ -20,7 +22,7 @@ def get_plot_data(river_id, plot_name='forecast'):
     Returns:
         df: the dataframe of the newest plot data
     """
-    files = os.listdir(CACHE_DIR_PATH)
+    files = os.listdir(PLOTS_CACHE_PATH)
     cache_file = None
     for file in files:
         if file.startswith(f'{plot_name}-{river_id}'):
@@ -32,8 +34,8 @@ def get_plot_data(river_id, plot_name='forecast'):
     if cache_file:
         cached_date = cache_file.split('-')[-1].split('.')[0]
         need_new_data = current_date != cached_date
-        cached_data_path = os.path.join(CACHE_DIR_PATH, cache_file)
-    new_data_path = os.path.join(CACHE_DIR_PATH, f'{plot_name}-{river_id}-{current_date}.csv')
+        cached_data_path = os.path.join(PLOTS_CACHE_PATH, cache_file)
+    new_data_path = os.path.join(PLOTS_CACHE_PATH, f'{plot_name}-{river_id}-{current_date}.csv')
 
     match plot_name:
         case "forecast":
@@ -143,7 +145,7 @@ def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
         '100 Year': 'rgba(128, 0, 246, {0})',
     }
 
-    headers=[x for x in percent_series.columns]
+    headers = [x for x in percent_series.columns]
 
     rows = []
     for _idx, row in enumerate(percent_series.values.tolist()):
@@ -158,11 +160,11 @@ def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
 
     fill_color = []
     for col in df.columns:
-      col_colors = []
-      for val in df[col]:
-        color = colors[col] if col == 'Date' else colors[col].format(round(val * 0.005, 2))
-        col_colors.append(color)
-      fill_color.append(col_colors)
+        col_colors = []
+        for val in df[col]:
+            color = colors[col] if col == 'Date' else colors[col].format(round(val * 0.005, 2))
+            col_colors.append(color)
+        fill_color.append(col_colors)
 
     fig = go.Figure(data=[go.Table(
         header=dict(
@@ -175,3 +177,28 @@ def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
         ))
     ])
     return fig
+
+
+def load_country_list():
+    filename = os.path.join(module_path, "countries_extents.json")
+    country_list = []
+    with open(filename, "r") as file:
+        data = json.load(file)
+    for country_name, _extent in data.items():
+        country_list.append({"value": country_name, "label": country_name})
+    return country_list
+
+
+def load_country_extents():
+    filename = os.path.join(module_path, "countries_extents.json")
+    country_extent = {}
+    with open(filename, "r") as file:
+        data = json.load(file)
+    for country_name, extent in data.items():
+        if extent:
+            extent[0] -= 0.1
+            extent[1] -= 0.1
+            extent[2] += 0.1
+            extent[3] += 0.1
+        country_extent[country_name] = extent
+    return country_extent

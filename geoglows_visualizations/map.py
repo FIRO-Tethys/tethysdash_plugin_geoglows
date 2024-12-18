@@ -93,12 +93,6 @@ class Map(base.DataSource):
             {'label': 'Exceeds 50yr', 'color': '#BC25F7'}
         ]
 
-        # return {
-        #     "mapConfig": mapConfig,
-        #     "viewConfig": viewConfig,
-        #     "layers": layers,
-        #     "legend": legend
-        # }
         return {
             "url": self.url,
             "scope": self.scope,
@@ -107,7 +101,7 @@ class Map(base.DataSource):
                 "layers": layers,
                 "viewConfig": viewConfig,
                 "mapConfig": mapConfig,
-                "legend": legend,
+                "legend": legend
             },
         }
 

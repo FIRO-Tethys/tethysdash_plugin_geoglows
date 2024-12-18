@@ -12,14 +12,16 @@ import {
   Layers,
   Controls,
   LayersControl,
+  LegendControl,
   useMapContext
 } from 'backlayer';
 
 
 const MapComponentContent = (
     { 
-        viewConfig, 
-        layers
+      viewConfig, 
+      layers,
+      legend
     }
 ) => {
     const { map } = useMapContext();
@@ -123,11 +125,6 @@ const MapComponentContent = (
       }
 
       map.on('click', handleMapClick);
-
-      // // Clean up the event listener when the component unmounts or map changes
-      // return () => {
-      //   map.un('click', handleMapClick);
-      // };
     }, [map]);
 
 
@@ -141,7 +138,7 @@ const MapComponentContent = (
         </Layers>
         <Controls>
             <LayersControl />
-            {/* <LegendControl items={legend} /> */}
+            <LegendControl items={legend} />
         </Controls>
       </Fragment>
     );

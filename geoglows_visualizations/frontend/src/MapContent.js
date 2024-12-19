@@ -21,7 +21,8 @@ const MapComponentContent = (
     { 
       viewConfig, 
       layers,
-      legend
+      legend,
+      setVariableInputValues
     }
 ) => {
     const { map } = useMapContext();
@@ -112,6 +113,13 @@ const MapComponentContent = (
                 name: 'Stream Segment'
               });
               map.addLayer(streamLayer);
+
+              if (setVariableInputValues) {
+                setVariableInputValues((prevStateValues) => ({
+                  ...prevStateValues,
+                  'River ID': riverId,
+                }));
+              }
             } else {
               map.removeLayer(markerLayer);
               alert("River not found. Try to zoom in and be precise when clicking the map.")

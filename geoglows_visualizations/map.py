@@ -46,7 +46,7 @@ class Map(base.DataSource):
                                 'Tiles © <a href="https://server.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer">ArcGIS</a>',
                         },
                     },
-                    'name': 'World Dark Gray Base Map',
+                    'name': 'Dark Gray Map',
                     'zIndex': 0,
                 },
             },
@@ -61,8 +61,23 @@ class Map(base.DataSource):
                                 'Tiles © <a href="https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer">ArcGIS</a>',
                         }
                     },
-                    'name': 'World Topographic Map',
+                    'name': 'Topographic Map',
                     'zIndex': 1,
+                }
+            },
+            {
+                'type': 'ImageLayer',
+                'props': {
+                    'source': {
+                        'type': 'ImageArcGISRest',
+                        'props': {
+                            'url': 'https://www.arcgis.com/home/item.html?id=a69f14ea2e784e019f4a4b6835ffd376/MapServer',
+                            'attributions':
+                                'Tiles © <a href="https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer">ArcGIS</a>',
+                        }
+                    },
+                    'name': 'Environment Map',
+                    'zIndex': 2,
                 }
             },
             {
@@ -80,7 +95,7 @@ class Map(base.DataSource):
                         },
                     },
                     'name': 'Geoglows Streamflow',
-                    'zIndex': 2,
+                    'zIndex': 3,
                 },
             }
         ]

@@ -1,7 +1,7 @@
 from intake.source import base
 import geoglows
 import numpy as np
-from .utilities import get_plot_data, flood_probabilities
+from .utilities import get_plot_data, flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 
 
 class Plots(base.DataSource):
@@ -19,6 +19,8 @@ class Plots(base.DataSource):
             {"value": "exceedance", "label": "Exceedance"},
             {"value": "daily-averages", "label": "Daily Averages"},
             {"value": "monthly-averages", "label": "Monthly Averages"},
+            {"value": "ssi-monthly", "label": "SSI Monthly"},
+            {"value": "ssi-one-month", "label": "SSI One Month"}
         ]
     }
     visualization_group = "GEOGLOWS"
@@ -60,6 +62,10 @@ class Plots(base.DataSource):
             case "monthly-averages":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.monthly_averages(df)
+            case "ssi-monthly":
+                plot = plot_ssi_each_month_since_year(self.river_id, 2010)  # TODO year is hardcoded?
+            case "ssi-one-month":
+                plot = plot_ssi_one_month_each_year(self.river_id, 1)
 
         data = []
         for trace in plot.data:

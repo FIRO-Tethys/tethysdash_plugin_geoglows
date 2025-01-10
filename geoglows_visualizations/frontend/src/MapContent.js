@@ -20,7 +20,7 @@ const MapComponentContent = ({
   viewConfig,
   layers,
   legend,
-  setVariableInputValues,
+  updateVariableInputValues,
 }) => {
   const { map } = useMapContext();
   const MIN_QUERY_ZOOM = 15;
@@ -115,10 +115,9 @@ const MapComponentContent = ({
               });
               map.addLayer(streamLayer);
 
-              setVariableInputValues((prevStateValues) => ({
-                ...prevStateValues,
+              updateVariableInputValues({
                 "River ID": riverId,
-              }));
+              })
             } else {
               map.removeLayer(markerLayer);
               alert(

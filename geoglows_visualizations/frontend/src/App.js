@@ -8,7 +8,7 @@ const MapComponent = ({
   viewConfig,
   layers,
   legend,
-  setVariableInputValues,
+  updateVariableInputValues,
 }) => {
   return (
     <Map {...mapConfig}>
@@ -16,7 +16,7 @@ const MapComponent = ({
         viewConfig={viewConfig}
         layers={layers}
         legend={legend}
-        setVariableInputValues={setVariableInputValues}
+        updateVariableInputValues={updateVariableInputValues}
       />
     </Map>
   );

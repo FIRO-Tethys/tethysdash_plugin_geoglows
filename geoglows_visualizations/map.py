@@ -71,21 +71,6 @@ class Map(base.DataSource):
                     'source': {
                         'type': 'ImageArcGISRest',
                         'props': {
-                            'url': 'https://www.arcgis.com/home/item.html?id=a69f14ea2e784e019f4a4b6835ffd376/MapServer',
-                            'attributions':
-                                'Tiles © <a href="https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer">ArcGIS</a>',
-                        }
-                    },
-                    'name': 'Environment Map',
-                    'zIndex': 2,
-                }
-            },
-            {
-                'type': 'ImageLayer',
-                'props': {
-                    'source': {
-                        'type': 'ImageArcGISRest',
-                        'props': {
                             'url':
                                 'https://livefeeds3.arcgis.com/arcgis/rest/services/GEOGLOWS/GlobalWaterModel_Medium/MapServer',
                             'params': {

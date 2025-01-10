@@ -35,7 +35,9 @@
   "dependencies": {
     "@babel/runtime": "^7.13.10",
     "backlayer": "^0.0.4",
+    "cors": "^2.8.5",
     "ol": "^10.3.1",
+    "ol-mapbox-style": "^12.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   }

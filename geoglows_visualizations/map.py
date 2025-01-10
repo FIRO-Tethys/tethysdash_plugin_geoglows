@@ -9,10 +9,13 @@ class Map(base.DataSource):
     visualization_args = {"country": load_country_list()}
     visualization_group = "GEOGLOWS"
     visualization_label = "GEOGLOWS Map"
-    visualization_type = "map"
+    visualization_type = "custom"
     country_extents = load_country_extents()
 
     def __init__(self, country="All Countries", metadata=None):
+        self.url = "http://localhost:4000/remoteEntry.js"
+        self.scope = "geoglows_map"
+        self.module = "./MapComponent"
         self.country = country
         super(Map, self).__init__(metadata=metadata)
 
@@ -43,7 +46,7 @@ class Map(base.DataSource):
                                 'Tiles © <a href="https://server.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer">ArcGIS</a>',
                         },
                     },
-                    'name': 'World Dark Gray Base Map',
+                    'name': 'Dark Gray Map',
                     'zIndex': 0,
                 },
             },
@@ -58,8 +61,23 @@ class Map(base.DataSource):
                                 'Tiles © <a href="https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer">ArcGIS</a>',
                         }
                     },
-                    'name': 'World Topographic Map',
+                    'name': 'Topographic Map',
                     'zIndex': 1,
+                }
+            },
+            {
+                'type': 'ImageLayer',
+                'props': {
+                    'source': {
+                        'type': 'ImageArcGISRest',
+                        'props': {
+                            'url': 'https://www.arcgis.com/home/item.html?id=a69f14ea2e784e019f4a4b6835ffd376/MapServer',
+                            'attributions':
+                                'Tiles © <a href="https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer">ArcGIS</a>',
+                        }
+                    },
+                    'name': 'Environment Map',
+                    'zIndex': 2,
                 }
             },
             {
@@ -77,7 +95,7 @@ class Map(base.DataSource):
                         },
                     },
                     'name': 'Geoglows Streamflow',
-                    'zIndex': 2,
+                    'zIndex': 3,
                 },
             }
         ]
@@ -91,10 +109,15 @@ class Map(base.DataSource):
         ]
 
         return {
-            "mapConfig": mapConfig,
-            "viewConfig": viewConfig,
-            "layers": layers,
-            "legend": legend
+            "url": self.url,
+            "scope": self.scope,
+            "module": self.module,
+            "props": {
+                "layers": layers,
+                "viewConfig": viewConfig,
+                "mapConfig": mapConfig,
+                "legend": legend
+            },
         }
 
     def get_viewConfig(self):
@@ -103,6 +126,8 @@ class Map(base.DataSource):
             viewConfig = {
                 'projection': 'EPSG:4326',
                 'extent': extent,
+                'center': [0, 0],  # doesn't matter
+                'zoom': 5,  # doesn't matter
                 'smoothExtentConstraint': True,
                 'showFullExtent': True
             }

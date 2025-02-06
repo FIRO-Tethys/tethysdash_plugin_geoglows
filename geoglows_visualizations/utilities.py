@@ -18,7 +18,7 @@ def get_plot_data(river_id, plot_name='forecast'):
     """Get newest forecast or historical data.
 
     Args:
-        reach_id (int or str): river id
+        river_id (int or str): river id
         plot_type (str, optional): The plot type. Options are forecast, historical, and return. Defaults to 'forecast'.
 
     Returns:
@@ -117,10 +117,11 @@ def plot_flow_regime(hist, river_id, year):
 
     Args:
         river_id (string): stream id
-        year (string): desired year
+        year (int): desired year
         hist (csv): the csv response from historic_simulation
     """
 
+    year = int(year)
     hist = hist.rename(columns={river_id: 'streamflow_m^3/s'})
     hdf = hist.copy()
     hdf = hdf[hdf.index.year >= 1991]
@@ -299,13 +300,12 @@ def plot_ssi_each_month_since_year(reach_id, since_year):
     df_ssi = get_SSI_data(df_retro)
     df_ssi_sorted = df_ssi.sort_index()[str(since_year):]
     fig = go.Figure(go.Scatter(
-        title="SSI Monthly Values Over Time",
         x=df_ssi_sorted.index,
         y=df_ssi_sorted['SSI'],
         mode='lines+markers',
         marker=dict(symbol='circle', color='blue', size=5)
     ))
-    fig.update_layout(xaxis_title='Date', yaxis_title='SSI')
+    fig.update_layout(xaxis_title='Date', yaxis_title='SSI', title="SSI Monthly Values Over Time")
     return fig
 
 
@@ -332,6 +332,7 @@ def get_SSI_monthly_data(df, month):
 
 
 def plot_ssi_one_month_each_year(reach_id, month):
+    month = int(month)
     assert 1 <= month <= 12, f'the month number is in valid: {month}'
 
     df_retro = get_plot_data(reach_id, 'historical')

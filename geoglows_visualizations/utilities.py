@@ -18,7 +18,7 @@ def get_plot_data(river_id, plot_name='forecast'):
     """Get newest forecast or historical data.
 
     Args:
-        reach_id (int or str): river id
+        river_id (int or str): river id
         plot_type (str, optional): The plot type. Options are forecast, historical, and return. Defaults to 'forecast'.
 
     Returns:
@@ -110,6 +110,90 @@ def stream_estimate(df, val):
             streamflow_lower
     )
     return streamflow_estimate
+
+
+def plot_flow_regime(hist, river_id, year):
+    """_summary_
+
+    Args:
+        river_id (string): stream id
+        year (int): desired year
+        hist (csv): the csv response from historic_simulation
+    """
+
+    year = int(year)
+    hist = hist.rename(columns={river_id: 'streamflow_m^3/s'})
+    hdf = hist.copy()
+    hdf = hdf[hdf.index.year >= 1991]
+    hdf = hdf[hdf.index.year <= 2020]
+
+    highflow = []
+    above_normal = []
+    normal = []
+    below_normal = []
+
+    for i in range(1, 13):
+        filtered_month = hist[hist.index.month == i]
+        filtered_month_mean = filtered_month.groupby(filtered_month.index.year).mean()
+        avg = hdf.groupby(hdf.index.month).mean()
+        filtered_month_mean["ratio"] = filtered_month_mean["streamflow_m^3/s"] / avg['streamflow_m^3/s'][i]
+        filtered_month_mean["rank"] = filtered_month_mean["ratio"].rank()
+        filtered_month_mean["percentile"] = filtered_month_mean["rank"] / (len(filtered_month_mean["rank"]) + 1)
+        filtered_month_mean.sort_values(by='percentile', inplace=True)
+        highflow.append(stream_estimate(filtered_month_mean, 0.87))
+        above_normal.append(stream_estimate(filtered_month_mean, 0.72))
+        normal.append(stream_estimate(filtered_month_mean, 0.28))
+        below_normal.append(stream_estimate(filtered_month_mean, 0.13))
+        # lowflow.append(stream_estimate(filtered_month_mean, 0.87))
+
+    year_data = hist[hist.index.year == year]
+    months = ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    dataframe = pd.DataFrame(months)
+    dataframe["high"] = highflow
+    dataframe["above"] = above_normal
+    dataframe["normal"] = normal
+    dataframe["below"] = below_normal
+    dataframe["year"] = year_data.groupby(year_data.index.month).mean().reset_index().drop("time", axis=1)
+
+    # draw the plots
+    scatter_plots = []
+    scatter_plots.append(go.Scatter(
+        x=dataframe[0], y=dataframe['below'], fill='tozeroy',
+        fillcolor='rgba(205, 35, 63, 0.5)', mode='none', name="below"
+    ))
+    scatter_plots.append(go.Scatter(
+        x=dataframe[0], y=dataframe['normal'], fill='tonexty',
+        fillcolor='rgba(255, 168, 133, 0.5)', mode='none', name="normal"
+    ))
+    scatter_plots.append(go.Scatter(
+        x=dataframe[0], y=dataframe['above'], fill='tonexty',
+        fillcolor='rgba(231, 226, 188, 0.5)', mode='none', name="above"
+    ))
+    scatter_plots.append(go.Scatter(
+        x=dataframe[0], y=dataframe['high'], fill='tonexty',
+        fillcolor='rgba(142, 206, 238, 0.5)', mode='none', name="high"
+    ))
+    scatter_plots.append(go.Scatter(
+        x=dataframe[0], y=dataframe['high'] * 2, fill='tonexty',
+        fillcolor='rgba(44, 125, 205, 0.5)', mode='none', name="high * 2"
+    ))
+
+    for col in dataframe.columns[1:]:
+        if col == "year":
+            plot = go.Scatter(name=col, x=dataframe[0], y=dataframe[col],
+                              mode="lines", line=dict(color="black", width=2))
+        else:
+            plot = go.Scatter(name=col, x=dataframe[0], y=dataframe[col],
+                              mode="lines", line=dict(color="gray", width=1), showlegend=False)
+        scatter_plots.append(plot)
+
+    layout = go.Layout(
+        title=f"{year} Monthly Streamflow with HydroSOS",
+        yaxis={'title': 'Discharge'},
+        xaxis={'title': 'Month of Year'},
+    )
+
+    return go.Figure(scatter_plots, layout=layout)
 
 
 def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
@@ -221,7 +305,7 @@ def plot_ssi_each_month_since_year(reach_id, since_year):
         mode='lines+markers',
         marker=dict(symbol='circle', color='blue', size=5)
     ))
-    fig.update_layout(xaxis_title='Date', yaxis_title='SSI')
+    fig.update_layout(xaxis_title='Date', yaxis_title='SSI', title="SSI Monthly Values Over Time")
     return fig
 
 
@@ -248,10 +332,17 @@ def get_SSI_monthly_data(df, month):
 
 
 def plot_ssi_one_month_each_year(reach_id, month):
+    month = int(month)
     assert 1 <= month <= 12, f'the month number is in valid: {month}'
 
     df_retro = get_plot_data(reach_id, 'historical')
     df_ssi_month = get_SSI_monthly_data(df_retro, month)
+
+    number_to_month = {
+        1: "January", 2: "February", 3: "March", 4: "April",
+        5: "May", 6: "June", 7: "July", 8: "August",
+        9: "September", 10: "October", 11: "November", 12: "December"
+    }
 
     fig = go.Figure(go.Scatter(
         x=df_ssi_month.index,
@@ -259,7 +350,11 @@ def plot_ssi_one_month_each_year(reach_id, month):
         mode='lines+markers',
         marker=dict(symbol='circle', color='blue', size=5)
     ))
-    fig.update_layout(xaxis_title='Date', yaxis_title='SSI')
+    fig.update_layout(
+        title=f"SSI Monthly Values for {number_to_month[month]} Over Time",
+        xaxis_title='Date',
+        yaxis_title='SSI'
+    )
     return fig
 
 

@@ -1,7 +1,10 @@
 from intake.source import base
 import geoglows
 import numpy as np
-from .utilities import get_plot_data, flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
+from .utilities import (
+    get_plot_data, plot_flow_regime, flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
+)
+from datetime import datetime
 
 
 class Plots(base.DataSource):
@@ -16,21 +19,26 @@ class Plots(base.DataSource):
             {"value": "forecast-ensembles", "label": "Forecast Ensembles"},
             {"value": "historical", "label": "Historical"},
             {"value": "flow-duration", "label": "Flow Duration"},
+            {"value": "flow-regime", "label": "Flow Regime"},
             {"value": "exceedance", "label": "Exceedance"},
             {"value": "daily-averages", "label": "Daily Averages"},
             {"value": "monthly-averages", "label": "Monthly Averages"},
             {"value": "ssi-monthly", "label": "SSI Monthly"},
             {"value": "ssi-one-month", "label": "SSI One Month"}
-        ]
+        ],
+        "month": [{"value": i, "label": i} for i in range(1, 13)],
+        "year": [{"value": i, "label": i} for i in range(1940, datetime.now().year)]
     }
     visualization_group = "GEOGLOWS"
     visualization_label = "GEOGLOWS Plots"
     visualization_type = "plotly"
     _user_parameters = []
 
-    def __init__(self, river_id, plot_name, metadata=None):
+    def __init__(self, river_id, plot_name, year, month, metadata=None):
         self.river_id = int(river_id)
         self.plot_name = plot_name
+        self.year = year
+        self.month = month
         super(Plots, self).__init__(metadata=metadata)
 
     def read(self):
@@ -52,6 +60,9 @@ class Plots(base.DataSource):
             case "flow-duration":
                 df = get_plot_data(self.river_id, "historical")
                 plot = geoglows.plots.flow_duration_curve(df)
+            case "flow-regime":
+                df = get_plot_data(self.river_id, "historical")
+                plot = plot_flow_regime(df, self.river_id, self.year)
             case "exceedance":
                 df_ensemble = get_plot_data(self.river_id, "forecast-ensembles")
                 df_return = get_plot_data(self.river_id, "return-periods")
@@ -65,7 +76,7 @@ class Plots(base.DataSource):
             case "ssi-monthly":
                 plot = plot_ssi_each_month_since_year(self.river_id, 2010)  # TODO year is hardcoded?
             case "ssi-one-month":
-                plot = plot_ssi_one_month_each_year(self.river_id, 1)
+                plot = plot_ssi_one_month_each_year(self.river_id, self.month)
 
         data = []
         for trace in plot.data:

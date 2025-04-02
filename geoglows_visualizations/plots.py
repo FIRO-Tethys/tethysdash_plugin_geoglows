@@ -5,6 +5,7 @@ from .utilities import (
     get_plot_data, plot_flow_regime, flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 )
 from datetime import datetime
+from .utilities import load_country_list
 
 
 class Plots(base.DataSource):
@@ -12,6 +13,7 @@ class Plots(base.DataSource):
     version = "0.0.1"
     name = "geoglows_plots"
     visualization_args = {
+        "country": load_country_list(),
         "river_id": "text",
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
@@ -34,7 +36,7 @@ class Plots(base.DataSource):
     visualization_type = "plotly"
     _user_parameters = []
 
-    def __init__(self, river_id, plot_name, year, month, metadata=None):
+    def __init__(self, country, river_id, plot_name, year, month, metadata=None):
         self.river_id = int(river_id)
         self.plot_name = plot_name
         self.year = year

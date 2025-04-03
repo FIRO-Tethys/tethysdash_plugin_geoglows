@@ -6,7 +6,7 @@ setup(
     name="tethysdash_plugin_geoglows",
     version="0.0.1",
     description="Geoglows visualization plugins for tethysdash",
-    url="https://github.com/FIRO-Tethys/tethysdash_plugin_usace",
+    url="https://github.com/FIRO-Tethys/tethysdash_plugin_geoglows",
     maintainer="Yue Sun",
     maintainer_email="ysun@aquaveo.com",
     license="BSD",
@@ -15,7 +15,6 @@ setup(
     entry_points={
         "intake.drivers": [
             "geoglows_plots = geoglows_visualizations.plots:Plots",
-            "geoglows_map = geoglows_visualizations.map:Map",
         ]
     },
     package_data={"": ["*.csv", "*.yml", "*.html"]},

@@ -15,11 +15,12 @@ if not os.path.exists(PLOTS_CACHE_PATH):
 
 
 def get_plot_data(river_id, plot_name='forecast'):
-    """Get newest forecast or historical data.
+    """Get newest data for the selected plot.
 
     Args:
         river_id (int or str): river id
-        plot_type (str, optional): The plot type. Options are forecast, historical, and return. Defaults to 'forecast'.
+        plot_type (str, optional): The plot type. Options are forecast,
+            historical, and return. Defaults to 'forecast'.  # TODO update doc
 
     Returns:
         df: the dataframe of the newest plot data
@@ -55,29 +56,31 @@ def get_plot_data(river_id, plot_name='forecast'):
                 df = geoglows.data.forecast_ensembles(river_id)
             else:
                 df = pd.read_csv(cached_data_path, parse_dates=['time'], index_col=[0])
-        case 'historical':
+        case 'retro-simulation':
             if need_new_data:
                 df = geoglows.data.retrospective(river_id)
             else:
                 df = pd.read_csv(cached_data_path, parse_dates=['time'], index_col=[0])
                 df.columns.name = 'rivid'
-                df.columns = df.columns.astype('int64')
+                df.columns = df.columns.astype('int')
         case 'return-periods':
             if need_new_data:
                 df = geoglows.data.return_periods(river_id)
             else:
                 df = pd.read_csv(cached_data_path, index_col=[0])
                 df.columns = df.columns.astype('int')
-        case 'daily-averages':
+        case 'retro-daily':
             if need_new_data:
-                df = geoglows.data.daily_averages(river_id)
+                df = geoglows.data.retro_daily(river_id)
             else:
-                df = pd.read_csv(cached_data_path, index_col=[0])
-        case 'monthly-averages':
+                df = pd.read_csv(cached_data_path, parse_dates=['time'], index_col=[0])
+                df.columns = df.columns.astype('int')
+        case 'retro-monthly':
             if need_new_data:
-                df = geoglows.data.monthly_averages(river_id)
+                df = geoglows.data.retro_monthly(river_id)
             else:
-                df = pd.read_csv(cached_data_path, index_col=[0])
+                df = pd.read_csv(cached_data_path, parse_dates=['time'], index_col=[0])
+                df.columns = df.columns.astype('int')
         case _:
             raise ValueError("plot_name is unacceptable")
 
@@ -89,111 +92,68 @@ def get_plot_data(river_id, plot_name='forecast'):
     return df
 
 
-def stream_estimate(df, val):
-    # Find the row with percentile <= 0.87
-    lower_row = df[df['percentile'] <= val].iloc[-1]
+def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, year):
+    status_labels = ["Very Wet", "Wet", "Normal", "Dry", "Very Dry"]
+    status_percentiles = [0, 13, 28, 72, 87]
+    status_colors = ['rgb(44, 125, 205)', 'rgb(142, 206, 238)',
+                     'rgb(231,226,188)', 'rgb(255, 168, 133)', 'rgb(205, 35, 63)']
 
-    # Find the row with percentile > 0.87
-    upper_row = df[df['percentile'] > val].iloc[0]
+    months = [f'{i}'.rjust(2, '0') for i in range(1, 13)]
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-    # Linear interpolation formula
-    percentile_lower = lower_row['percentile']
-    percentile_upper = upper_row['percentile']
-    streamflow_lower = lower_row['streamflow_m^3/s']
-    streamflow_upper = upper_row['streamflow_m^3/s']
-    target_percentile = val
+    df_retro_daily['month'] = df_retro_daily.index.strftime('%m')
 
-    streamflow_estimate = (
-            (streamflow_upper - streamflow_lower) /
-            (percentile_upper - percentile_lower) *
-            (target_percentile - percentile_lower) +
-            streamflow_lower
-    )
-    return streamflow_estimate
+    monthly_status_values = {}
+    for label in status_labels:
+        monthly_status_values[label] = []
 
+    for month in months:
+        tmp = df_retro_daily[df_retro_daily['month'] == month].sort_values(by=river_id, ascending=False)
+        values = tmp[river_id].to_list()
 
-def plot_flow_regime(hist, river_id, year):
-    """_summary_
+        for idx, percentile in enumerate(status_percentiles):
+            index = int(len(values) * percentile / 100)
+            monthly_status_values[status_labels[idx]].append(values[index])  # calculate values based on the percentile
 
-    Args:
-        river_id (string): stream id
-        year (int): desired year
-        hist (csv): the csv response from historic_simulation
-    """
+    df_monthly_status = pd.DataFrame.from_dict(monthly_status_values)
 
-    year = int(year)
-    hist = hist.rename(columns={river_id: 'streamflow_m^3/s'})
-    hdf = hist.copy()
-    hdf = hdf[hdf.index.year >= 1991]
-    hdf = hdf[hdf.index.year <= 2020]
-
-    highflow = []
-    above_normal = []
-    normal = []
-    below_normal = []
-
-    for i in range(1, 13):
-        filtered_month = hist[hist.index.month == i]
-        filtered_month_mean = filtered_month.groupby(filtered_month.index.year).mean()
-        avg = hdf.groupby(hdf.index.month).mean()
-        filtered_month_mean["ratio"] = filtered_month_mean["streamflow_m^3/s"] / avg['streamflow_m^3/s'][i]
-        filtered_month_mean["rank"] = filtered_month_mean["ratio"].rank()
-        filtered_month_mean["percentile"] = filtered_month_mean["rank"] / (len(filtered_month_mean["rank"]) + 1)
-        filtered_month_mean.sort_values(by='percentile', inplace=True)
-        highflow.append(stream_estimate(filtered_month_mean, 0.87))
-        above_normal.append(stream_estimate(filtered_month_mean, 0.72))
-        normal.append(stream_estimate(filtered_month_mean, 0.28))
-        below_normal.append(stream_estimate(filtered_month_mean, 0.13))
-        # lowflow.append(stream_estimate(filtered_month_mean, 0.87))
-
-    year_data = hist[hist.index.year == year]
-    months = ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    dataframe = pd.DataFrame(months)
-    dataframe["high"] = highflow
-    dataframe["above"] = above_normal
-    dataframe["normal"] = normal
-    dataframe["below"] = below_normal
-    dataframe["year"] = year_data.groupby(year_data.index.month).mean().reset_index().drop("time", axis=1)
-
-    # draw the plots
     scatter_plots = []
-    scatter_plots.append(go.Scatter(
-        x=dataframe[0], y=dataframe['below'], fill='tozeroy',
-        fillcolor='rgba(205, 35, 63, 0.5)', mode='none', name="below"
-    ))
-    scatter_plots.append(go.Scatter(
-        x=dataframe[0], y=dataframe['normal'], fill='tonexty',
-        fillcolor='rgba(255, 168, 133, 0.5)', mode='none', name="normal"
-    ))
-    scatter_plots.append(go.Scatter(
-        x=dataframe[0], y=dataframe['above'], fill='tonexty',
-        fillcolor='rgba(231, 226, 188, 0.5)', mode='none', name="above"
-    ))
-    scatter_plots.append(go.Scatter(
-        x=dataframe[0], y=dataframe['high'], fill='tonexty',
-        fillcolor='rgba(142, 206, 238, 0.5)', mode='none', name="high"
-    ))
-    scatter_plots.append(go.Scatter(
-        x=dataframe[0], y=dataframe['high'] * 2, fill='tonexty',
-        fillcolor='rgba(44, 125, 205, 0.5)', mode='none', name="high * 2"
-    ))
-
-    for col in dataframe.columns[1:]:
-        if col == "year":
-            plot = go.Scatter(name=col, x=dataframe[0], y=dataframe[col],
-                              mode="lines", line=dict(color="black", width=2))
-        else:
-            plot = go.Scatter(name=col, x=dataframe[0], y=dataframe[col],
-                              mode="lines", line=dict(color="gray", width=1), showlegend=False)
-        scatter_plots.append(plot)
+    for i, label in enumerate(df_monthly_status.columns):
+        scatter_plots.append(go.Scatter(
+            x=month_names,
+            y=df_monthly_status[label],
+            mode="lines",
+            fill="tozeroy",
+            name=label,
+            line=dict(width=0),
+            fillcolor=status_colors[i]
+        ))
 
     layout = go.Layout(
-        title=f"{year} Monthly Streamflow with HydroSOS",
-        yaxis={'title': 'Discharge'},
-        xaxis={'title': 'Month of Year'},
+        title=f"Annual Status by Month for River: {river_id}",
+        xaxis=dict(
+            title="Month",
+            tickvals=months,
+            ticktext=month_names
+        ),
+        hovermode="x",
+        yaxis=dict(
+            title="Flow (m³/s)",
+            range=[0, None]
+        )
     )
 
-    return go.Figure(scatter_plots, layout=layout)
+    df_retro_monthly['year'] = df_retro_monthly.index.strftime('%Y')
+    df_retro_monthly_year = df_retro_monthly[df_retro_monthly['year'] == str(year)]
+    scatter_plots.append(go.Scatter(
+        x=month_names,
+        y=df_retro_monthly_year[river_id],
+        name=f'year {year}',
+        mode='lines',
+        line=dict(width=2, color='black')
+    ))
+
+    return go.Figure(scatter_plots, layout)
 
 
 def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
@@ -296,7 +256,7 @@ def plot_ssi_each_month_since_year(reach_id, since_year):
     current_year = datetime.now().year
     assert 1941 <= since_year <= 2024 <= current_year, f'the year should be in range [1941, {current_year}]'
 
-    df_retro = get_plot_data(reach_id, 'historical')
+    df_retro = get_plot_data(reach_id, 'retro-simulation')
     df_ssi = get_SSI_data(df_retro)
     df_ssi_sorted = df_ssi.sort_index()[str(since_year):]
     fig = go.Figure(go.Scatter(
@@ -335,7 +295,7 @@ def plot_ssi_one_month_each_year(reach_id, month):
     month = int(month)
     assert 1 <= month <= 12, f'the month number is in valid: {month}'
 
-    df_retro = get_plot_data(reach_id, 'historical')
+    df_retro = get_plot_data(reach_id, 'retro-simulation')
     df_ssi_month = get_SSI_monthly_data(df_retro, month)
 
     number_to_month = {

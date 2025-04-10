@@ -92,6 +92,52 @@ def get_plot_data(river_id, plot_name='forecast'):
     return df
 
 
+def plot_retro_simulation(df_retro_daily, df_retro_monthly, river_id):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_retro_daily.index,
+        y=df_retro_daily[river_id],
+        mode='lines',
+        name='Daily Average'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_retro_monthly.index,
+        y=df_retro_monthly[river_id],
+        mode='lines',
+        name='Monthly Average',
+        line=dict(color='rgb(0, 166, 255)'),
+        visible='legendonly'
+    ))
+
+    fig.update_layout(
+        title=f'Retrospective Simulation for River: {river_id}',
+        legend=dict(orientation='h', x=0, y=0.9),
+        hovermode='x',
+        yaxis=dict(
+            title="Discharge (m³/s)",
+            range=[0, None]
+        ),
+        xaxis=dict(
+            title="Date (UTC +00:00)",
+            type='date',
+            # autorange=False,
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1 Year", step="year", stepmode="backward"),
+                    dict(count=5, label="5 Years", step="year", stepmode="backward"),
+                    dict(count=10, label="10 Years", step="year", stepmode="backward"),
+                    dict(count=30, label="30 Years", step="year", stepmode="backward"),
+                    dict(count=len(df_retro_daily.index), label="All", step="day")
+                ]
+            ),
+            rangeslider=dict(visible=True)
+        )
+    )
+
+    return fig
+
+
 def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, year):
     status_labels = ["Very Wet", "Wet", "Normal", "Dry", "Very Dry"]
     status_percentiles = [0, 13, 28, 72, 87]

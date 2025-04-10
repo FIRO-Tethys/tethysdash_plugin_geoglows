@@ -2,7 +2,7 @@ from intake.source import base
 import geoglows
 import numpy as np
 from .utilities import (
-    get_plot_data, plot_retro_annual_status, flood_probabilities,
+    get_plot_data, plot_retro_simulation, plot_retro_annual_status, flood_probabilities,
     plot_ssi_each_month_since_year, plot_ssi_one_month_each_year, load_country_list
 )
 from datetime import datetime
@@ -57,8 +57,9 @@ class Plots(base.DataSource):
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.forecast_ensembles(df, rp_df=df_return)
             case "retro-simulation":
-                df = get_plot_data(self.river_id, self.plot_name)
-                plot = geoglows.plots.retrospective(df, rp_df=df_return)
+                df_retro_daily = get_plot_data(self.river_id, "retro-daily")
+                df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
+                plot = plot_retro_simulation(df_retro_daily, df_retro_monthly, self.river_id)
             case "retro-daily":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.daily_averages(df)

@@ -81,6 +81,12 @@ def get_plot_data(river_id, plot_name='forecast'):
             else:
                 df = pd.read_csv(cached_data_path, parse_dates=['time'], index_col=[0])
                 df.columns = df.columns.astype('int')
+        case 'retro-yearly':
+            if need_new_data:
+                df = geoglows.data.retro_yearly(river_id)
+            else:
+                df = pd.read_csv(cached_data_path, parse_dates=['time'], index_col=[0])
+                df.columns = df.columns.astype('int')
         case _:
             raise ValueError("plot_name is unacceptable")
 
@@ -132,6 +138,50 @@ def plot_retro_simulation(df_retro_daily, df_retro_monthly, river_id):
                 ]
             ),
             rangeslider=dict(visible=True)
+        )
+    )
+
+    return fig
+
+
+def plot_yearly_volumes(df_retro_yearly, river_id):
+    seconds_per_year = 60 * 60 * 24 * 365.25
+    df_retro_yearly['year'] = df_retro_yearly.index.strftime('%Y').astype('int')
+    df_retro_yearly['volume'] = df_retro_yearly[river_id] * seconds_per_year / 1e6
+    df_retro_yearly['5year_start'] = df_retro_yearly['year'] // 5 * 5
+    df_5_year_avgs = df_retro_yearly.groupby('5year_start').mean().drop(['year', river_id], axis=1).reset_index()
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_retro_yearly['year'],
+        y=df_retro_yearly['volume'],
+        mode='lines',
+        name='Annual Volume',
+        marker=dict(color='rgb(0, 166, 255)')
+    ))
+
+    for idx, row in df_5_year_avgs.iterrows():
+        year = row['5year_start']
+        val = row['volume']
+        fig.add_trace(go.Scatter(
+            x=[year, year + 5],
+            y=[val, val],
+            mode='lines',
+            legendgroup='5 Year Average',
+            showlegend=idx == 0,  # TODO waht does this do?
+            name='5 Year Average',
+            marker=dict(color='red')
+        ))
+
+    fig.update_layout(
+        title=f'Yearly Cumulative Discharge Volume for River: {river_id}',
+        legend=dict(orientation='h'),
+        hovermode='x',
+        xaxis=dict(title='Year'),
+        yaxis=dict(
+            title='Million Cubic Meters (m³ * 10^6)',
+            range=[0, None]
         )
     )
 

@@ -67,6 +67,8 @@ class Plots(base.DataSource):
                 plot = geoglows.plots.daily_averages(df)
             case "retro-monthly":
                 df = get_plot_data(self.river_id, self.plot_name)
+                df['month'] = df.index.strftime('%m')
+                df = df.groupby('month').mean()
                 plot = geoglows.plots.monthly_averages(df)
             case "retro-yearly":
                 df = get_plot_data(self.river_id, self.plot_name)

@@ -252,6 +252,53 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, year):
     return go.Figure(scatter_plots, layout)
 
 
+def plot_retro_fdc(df_retro_daily, river_id):
+    percentiles = [i * 2 for i in range(51)]
+    percentiles_reversed = percentiles[::-1]
+
+    def sorted_array_to_percentiles(array):
+        return [array[len(array) * p // 100 - (1 if p == 100 else 0)] for p in percentiles_reversed]
+
+    months = [f'{i}'.rjust(2, '0') for i in range(1, 13)]
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    df_retro_daily['month'] = df_retro_daily.index.strftime('%m')
+
+    fdc = sorted_array_to_percentiles(df_retro_daily.sort_values(by=river_id)[river_id].to_list())
+    monthly_fdc = {}
+    for month in months:
+        tmp = df_retro_daily[df_retro_daily['month'] == month].sort_values(by=river_id, ascending=True)
+        values = tmp[river_id].to_list()
+        monthly_fdc[month] = sorted_array_to_percentiles(values)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=percentiles,
+        y=fdc,
+        mode='lines',
+        name='Flow Duration Curve'
+    ))
+
+    for i in range(12):
+        month, month_name = months[i], month_names[i]
+        fig.add_trace(go.Scatter(
+            x=percentiles,
+            y=monthly_fdc[month],
+            mode='lines',
+            name=f'FDC {month_name}'
+        ))
+
+    fig.update_layout(
+        title=f'Flow Duration Curves for River: {river_id}',
+        xaxis=dict(title='Percentile (100%)'),
+        yaxis=dict(title='Flow (m³/s)', range=[0, None]),
+        legend=dict(orientation='h'),
+        hovermode='x'
+    )
+
+    return fig
+
+
 def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
     """
     Processes the results of forecast_ensembles and return_periods and shows the probabilities of exceeding the

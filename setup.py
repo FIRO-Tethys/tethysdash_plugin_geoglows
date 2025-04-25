@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-INSTALL_REQUIRES = ["intake >=0.6.6", "pandas", "numpy", "requests"]
+INSTALL_REQUIRES = ["intake >=0.6.6", "pandas", "numpy", "requests", "geoglows"]
 
 setup(
     name="tethysdash_plugin_geoglows",

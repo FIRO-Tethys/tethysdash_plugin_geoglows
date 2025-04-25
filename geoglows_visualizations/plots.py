@@ -30,7 +30,7 @@ class Plots(base.DataSource):
                 "sub_args": {
                     "Year": [{"value": i, "label": i} for i in range(1940, datetime.now().year)]
                 }
-            },  # need Year
+            },
             {"value": "retro-fdc", "label": "Flow Duration"},
             {"value": "exceedance", "label": "Exceedance"},
             {"value": "ssi-monthly", "label": "SSI Monthly"},
@@ -40,9 +40,8 @@ class Plots(base.DataSource):
                 "sub_args": {
                     "Month": [{"value": i, "label": i} for i in range(1, 13)]
                 }
-            }  # need Month
+            }
         ],
-        
     }
     visualization_group = "GEOGLOWS"
     visualization_label = "GEOGLOWS Plots"
@@ -52,7 +51,10 @@ class Plots(base.DataSource):
     def __init__(self, country, river_id, plot_name, metadata=None, **kwargs):
         self.river_id = int(river_id)
         self.plot_name = plot_name
-        self.sub_args = kwargs
+        if "plot_name.Year" in kwargs:
+            self.year = kwargs["plot_name.Year"]
+        if "plot_name.Month" in kwargs:
+            self.month = kwargs["plot_name.Month"]
         super(Plots, self).__init__(metadata=metadata)
 
     def read(self):
@@ -89,7 +91,7 @@ class Plots(base.DataSource):
             case "retro-status":
                 df_retro_daily = get_plot_data(self.river_id, "retro-daily")
                 df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
-                plot = plot_retro_annual_status(df_retro_daily, df_retro_monthly, self.river_id, self.sub_args['plot_name.Year'])
+                plot = plot_retro_annual_status(df_retro_daily, df_retro_monthly, self.river_id, self.year)
             case "retro-fdc":
                 df_retro_daily = get_plot_data(self.river_id, "retro-daily")
                 plot = plot_retro_fdc(df_retro_daily, self.river_id)
@@ -100,7 +102,7 @@ class Plots(base.DataSource):
             case "ssi-monthly":
                 plot = plot_ssi_each_month_since_year(self.river_id, 2010)  # TODO year is hardcoded?
             case "ssi-one-month":
-                plot = plot_ssi_one_month_each_year(self.river_id, self.sub_args['plot_name.Month'])
+                plot = plot_ssi_one_month_each_year(self.river_id, self.month)
 
         data = []
         for trace in plot.data:

@@ -212,6 +212,7 @@ def flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
     ens = ens.groupby(ens.index.date).max()
     ens.index = pd.to_datetime(ens.index).strftime('%Y-%m-%d')
     # for each return period, get the percentage of columns with a value greater than the return period on each day
+    rperiods = rperiods.T
     percent_series = {rp: (ens > rperiods[rp].values[0]).mean(axis=1).values.tolist() for rp in rperiods}
     percent_series = pd.DataFrame(percent_series, index=ens.index)
     percent_series.index.name = 'Date'

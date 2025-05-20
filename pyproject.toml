@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "tethysdash_plugin_geoglows"
+authors = [{ name = "Aquaveo LLC", email = "ysun@aquaveo.com" }]
+license = { file = "LICENSE" }
+readme = "README.md"
+classifiers = ["License :: OSI Approved :: MIT License"]
+version = "0.0.2"
+description = "Geoglows visualizations plugin for tethysdash"
+requires-python = ">=3.9"
+dependencies = [
+    "intake>=0.6.6",
+    "pandas>=2.2.3",
+    "requests>=2.32.3",
+    "geoglows>=1.7.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/FIRO-Tethys/tethysdash_plugin_geoglows"
+Issues = "https://github.com/FIRO-Tethys/tethysdash_plugin_geoglows/issues"
+
+[project.entry-points."intake.drivers"]
+geoglows_plots = "tethysdash_plugin_geoglows.plots:Plots"
+geoglows_map = "tethysdash_plugin_geoglows.map:Map"
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = ["*"]
+
+[tool.setuptools.package-data]
+"tethysdash_plugin_geoglows" = ["static/*.png"]

@@ -3,7 +3,7 @@ import geoglows
 import numpy as np
 from .utilities import (
     get_plot_data, plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes, plot_retro_fdc,
-    flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year, load_country_list
+    flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 )
 from datetime import datetime
 
@@ -12,8 +12,15 @@ class Plots(base.DataSource):
     container = "python"
     version = "0.0.1"
     name = "geoglows_plots"
+    visualization_tags = [
+        "geoglows",
+        "streamflow",
+        "ensemble",
+        "exceedance",
+        "return period",
+    ]
+    visualization_description = "Depicts various streamflow based interactive charts based on the geoglows streamflow model. Charts included are derived from deterministic forecasts, ensemble forecasts, and statistical analysis"
     visualization_args = {
-        "country": load_country_list(),
         "river_id": "text",
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
@@ -31,14 +38,14 @@ class Plots(base.DataSource):
             {"value": "ssi-one-month", "label": "SSI One Month"}  # need Month
         ],
         "month": [{"value": i, "label": i} for i in range(1, 13)],
-        "year": [{"value": i, "label": i} for i in range(1940, datetime.now().year)]
+        "year": [{"value": i, "label": i} for i in range(1940, datetime.now().year)],
     }
     visualization_group = "GEOGLOWS"
     visualization_label = "GEOGLOWS Plots"
     visualization_type = "plotly"
     _user_parameters = []
 
-    def __init__(self, country, river_id, plot_name, year, month, metadata=None):
+    def __init__(self, river_id, plot_name, year, month, metadata=None):
         self.river_id = int(river_id)
         self.plot_name = plot_name
         self.year = year
@@ -88,22 +95,20 @@ class Plots(base.DataSource):
                 df_return = get_plot_data(self.river_id, "return-periods")
                 plot = flood_probabilities(df_ensemble, df_return)
             case "ssi-monthly":
-                plot = plot_ssi_each_month_since_year(self.river_id, 2010)  # TODO year is hardcoded?
+                plot = plot_ssi_each_month_since_year(
+                    self.river_id, 2010
+                )  # TODO year is hardcoded?
             case "ssi-one-month":
                 plot = plot_ssi_one_month_each_year(self.river_id, self.month)
 
         data = []
         for trace in plot.data:
             trace_json = trace.to_plotly_json()
-            if 'x' in trace_json and isinstance(trace_json['x'], np.ndarray):
-                trace_json['x'] = trace_json['x'].tolist()
-            if 'y' in trace_json and isinstance(trace_json['y'], np.ndarray):
-                trace_json['y'] = trace_json['y'].tolist()
+            if "x" in trace_json and isinstance(trace_json["x"], np.ndarray):
+                trace_json["x"] = trace_json["x"].tolist()
+            if "y" in trace_json and isinstance(trace_json["y"], np.ndarray):
+                trace_json["y"] = trace_json["y"].tolist()
             data.append(trace_json)
         layout = plot.to_plotly_json()["layout"]
-        config = {'autosizable': True, 'responsive': True}
-        return {
-            "data": data,
-            "layout": layout,
-            "config": config
-        }
+        config = {"autosizable": True, "responsive": True}
+        return {"data": data, "layout": layout, "config": config}

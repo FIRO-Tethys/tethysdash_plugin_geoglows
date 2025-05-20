@@ -46,7 +46,7 @@ class Plots(base.DataSource):
     visualization_type = "plotly"
     _user_parameters = []
 
-    def __init__(self, country, river_id, plot_name, year, month, metadata=None):
+    def __init__(self, river_id, plot_name, year, month, metadata=None):
         self.river_id = int(river_id)
         self.plot_name = plot_name
         self.year = year

@@ -1,0 +1,298 @@
+{
+    "args_string": {
+      "layers": [
+        {
+          "configuration": {
+            "type": "ImageLayer",
+            "props": {
+              "name": "NOAA-20 VIIRS True Color",
+              "source": {
+                "type": "ESRI Image and Map Service",
+                "props": {
+                  "url": "https://modis.arcgis.com/arcgis/rest/services/VIIRS/ImageServer",
+                  "params": {
+                    "mosaicRule": "{\"ascending\":true,\"mosaicMethod\":\"esriMosaicAttribute\",\"mosaicOperation\":\"MT_FIRST\",\"sortField\":\"Best\",\"sortValue\":\"0\",\"where\":\"Dataset_ID = 'VIIRS NOAA-20 True Color'\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "configuration": {
+            "type": "ImageLayer",
+            "props": {
+              "name": "NOAA-20 VIIRS Water States",
+              "source": {
+                "type": "ESRI Image and Map Service",
+                "props": {
+                  "url": "https://modis.arcgis.com/arcgis/rest/services/VIIRS/ImageServer",
+                  "params": {
+                    "mosaicRule": "{\"ascending\":true,\"mosaicMethod\":\"esriMosaicAttribute\",\"mosaicOperation\":\"MT_FIRST\",\"sortField\":\"Best\",\"sortValue\":\"0\",\"where\":\"Dataset_ID = 'VIIRS NOAA-20 M3-I3-M11'\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "configuration": {
+            "type": "TileLayer",
+            "props": {
+              "name": "NOAA-20 VIIRS Flood Composite",
+              "source": {
+                "type": "Image Tile",
+                "props": {
+                  "url": "https://floods.ssec.wisc.edu/tiles/RIVER-FLDglobal-composite/20250507/000000/{z}/{x}/{y}"
+                }
+              }
+            }
+          }
+        },
+        {
+          "configuration": {
+            "type": "VectorLayer",
+            "props": {
+              "name": "NOAA-20 VIIRS Thermal Anomalies",
+              "source": {
+                "type": "ESRI Feature Service",
+                "props": {
+                  "url": "https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/Satellite_VIIRS_Thermal_Hotspots_and_Fire_Activity/FeatureServer/",
+                  "layer": "0"
+                }
+              }
+            },
+            "style": {
+              "version": 8,
+              "sources": {
+                "NOAA-20 VIIRS Thermal Anomalies": {
+                  "type": "geojson"
+                }
+              },
+              "layers": [
+                {
+                  "id": "frp-core",
+                  "type": "circle",
+                  "source": "NOAA-20 VIIRS Thermal Anomalies",
+                  "paint": {
+                    "circle-opacity": 0.8,
+                    "circle-color": "#d73e2f",
+                    "circle-blur": [
+                      "case",
+                      [
+                        ">=",
+                        [
+                          "get",
+                          "frp"
+                        ],
+                        750
+                      ],
+                      0.1,
+                      [
+                        ">",
+                        [
+                          "get",
+                          "frp"
+                        ],
+                        300
+                      ],
+                      0.2,
+                      [
+                        ">",
+                        [
+                          "get",
+                          "frp"
+                        ],
+                        100
+                      ],
+                      0.3,
+                      [
+                        ">",
+                        [
+                          "get",
+                          "frp"
+                        ],
+                        10
+                      ],
+                      0.4,
+                      0.5
+                    ],
+                    "circle-radius": [
+                      "interpolate",
+                      [
+                        "linear"
+                      ],
+                      [
+                        "zoom"
+                      ],
+                      6,
+                      [
+                        "case",
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          750
+                        ],
+                        17,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          300
+                        ],
+                        13,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          100
+                        ],
+                        7,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          10
+                        ],
+                        4.5,
+                        3
+                      ],
+                      10,
+                      [
+                        "case",
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          750
+                        ],
+                        20,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          300
+                        ],
+                        16,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          100
+                        ],
+                        10,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          10
+                        ],
+                        7.5,
+                        6
+                      ],
+                      14,
+                      [
+                        "case",
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          750
+                        ],
+                        23,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          300
+                        ],
+                        19,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          100
+                        ],
+                        13,
+                        [
+                          ">",
+                          [
+                            "get",
+                            "frp"
+                          ],
+                          10
+                        ],
+                        10,
+                        9
+                      ]
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "configuration": {
+            "type": "ImageLayer",
+            "props": {
+              "name": "Geoglows Streamflow",
+              "source": {
+                "type": "ESRI Image and Map Service",
+                "props": {
+                  "url": "https://livefeeds3.arcgis.com/arcgis/rest/services/GEOGLOWS/GlobalWaterModel_Medium/MapServer",
+                  "params": {
+                    "LAYERDEFS": "0: rivercountry='${Country}'"
+                  }
+                }
+              }
+            }
+          },
+          "attributeVariables": {
+            "Flow Forecast (m³/sec)": {
+              "comid": "River ID"
+            }
+          }
+        }
+      ],
+      "baseMap": "https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer",
+      "viewConfig": {
+        "center": [
+          4141402.808467102,
+          333015.41954539
+        ],
+        "zoom": 5.611202784048336
+      },
+      "layerControl": true
+    },
+    "h": 38,
+    "i": "2",
+    "source": "Map",
+    "metadata_string": {},
+    "w": 64,
+    "x": 0,
+    "y": 6
+}

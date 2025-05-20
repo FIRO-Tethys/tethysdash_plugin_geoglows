@@ -1,7 +1,7 @@
 from intake.source import base
 import os
 import json
-from .utilities import load_country_list
+from .utilities import load_country_list, load_country_extents
 
 
 class Map(base.DataSource):
@@ -22,6 +22,8 @@ class Map(base.DataSource):
     visualization_type = "map"
     _user_parameters = []
 
+    country_extents = load_country_extents()
+
     def __init__(self, country, metadata=None, **kwargs):
         self.country = country
         super(Map, self).__init__(metadata=metadata)
@@ -39,4 +41,19 @@ class Map(base.DataSource):
             props = layer['configuration']['props']
             if props['name'] == 'Geoglows Streamflow':
                 props['source']['props']['params']['LAYERDEFS'] = f"0: rivercountry='{self.country}'"
+        # Update map viewConfig
+        map_config['viewConfig'] = self.get_viewConfig()
         return map_config
+
+    def get_viewConfig(self):
+        extent = Map.country_extents.get(self.country)
+        if extent:
+            viewConfig = {
+                'projection': 'EPSG:4326',
+                'extent': extent,
+                'smoothExtentConstraint': True,
+                'showFullExtent': True
+            }
+        else:
+            viewConfig = {'projection': 'EPSG:4326', 'center': [0, 20], 'zoom': 2}
+        return viewConfig

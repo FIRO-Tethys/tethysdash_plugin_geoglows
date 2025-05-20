@@ -9,7 +9,6 @@ from .utilities import (
     plot_ssi_one_month_each_year,
 )
 from datetime import datetime
-from .utilities import load_country_list
 
 
 class Plots(base.DataSource):
@@ -25,7 +24,6 @@ class Plots(base.DataSource):
     ]
     visualization_description = "Depicts various streamflow based interactive charts based on the geoglows streamflow model. Charts included are derived from deterministic forecasts, ensemble forecasts, and statistical analysis"
     visualization_args = {
-        "country": load_country_list(),
         "river_id": "text",
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
@@ -48,7 +46,7 @@ class Plots(base.DataSource):
     visualization_type = "plotly"
     _user_parameters = []
 
-    def __init__(self, country, river_id, plot_name, year, month, metadata=None):
+    def __init__(self, river_id, plot_name, year, month, metadata=None):
         self.river_id = int(river_id)
         self.plot_name = plot_name
         self.year = year

@@ -25,6 +25,7 @@ Issues = "https://github.com/FIRO-Tethys/tethysdash_plugin_geoglows/issues"
 
 [project.entry-points."intake.drivers"]
 geoglows_plots = "tethysdash_plugin_geoglows.plots:Plots"
+geoglows_map = "tethysdash_plugin_geoglows.map:Map"
 
 [tool.setuptools]
 include-package-data = true

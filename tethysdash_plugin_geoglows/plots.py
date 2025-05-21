@@ -2,11 +2,8 @@ from intake.source import base
 import geoglows
 import numpy as np
 from .utilities import (
-    get_plot_data,
-    plot_flow_regime,
-    flood_probabilities,
-    plot_ssi_each_month_since_year,
-    plot_ssi_one_month_each_year,
+    get_plot_data, plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes, plot_retro_fdc,
+    flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 )
 from datetime import datetime
 
@@ -29,14 +26,16 @@ class Plots(base.DataSource):
             {"value": "forecast", "label": "Forecast"},
             {"value": "forecast-stats", "label": "Forecast Statistics"},
             {"value": "forecast-ensembles", "label": "Forecast Ensembles"},
-            {"value": "historical", "label": "Historical"},
-            {"value": "flow-duration", "label": "Flow Duration"},
-            {"value": "flow-regime", "label": "Flow Regime"},
+            {"value": "retro-simulation", "label": "Retrospective Simulation"},
+            {"value": "retro-daily", "label": "Retrospective Daily Averages"},
+            {"value": "retro-monthly", "label": "Retrospective Monthly Averages"},
+            {"value": "retro-yearly", "label": "Retrospective Yearly Averages"},
+            {"value": "retro-yearly-volume", "label": "Yearly Cumulative Discharge Volume"},
+            {"value": "retro-status", "label": "Annual Status by Month"},  # need Year
+            {"value": "retro-fdc", "label": "Flow Duration"},
             {"value": "exceedance", "label": "Exceedance"},
-            {"value": "daily-averages", "label": "Daily Averages"},
-            {"value": "monthly-averages", "label": "Monthly Averages"},
             {"value": "ssi-monthly", "label": "SSI Monthly"},
-            {"value": "ssi-one-month", "label": "SSI One Month"},
+            {"value": "ssi-one-month", "label": "SSI One Month"}  # need Month
         ],
         "month": [{"value": i, "label": i} for i in range(1, 13)],
         "year": [{"value": i, "label": i} for i in range(1940, datetime.now().year)],
@@ -66,25 +65,35 @@ class Plots(base.DataSource):
             case "forecast-ensembles":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.forecast_ensembles(df, rp_df=df_return)
-            case "historical":
+            case "retro-simulation":
+                df_retro_daily = get_plot_data(self.river_id, "retro-daily")
+                df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
+                plot = plot_retro_simulation(df_retro_daily, df_retro_monthly, self.river_id)
+            case "retro-daily":
                 df = get_plot_data(self.river_id, self.plot_name)
-                plot = geoglows.plots.retrospective(df, rp_df=df_return)
-            case "flow-duration":
-                df = get_plot_data(self.river_id, "historical")
-                plot = geoglows.plots.flow_duration_curve(df)
-            case "flow-regime":
-                df = get_plot_data(self.river_id, "historical")
-                plot = plot_flow_regime(df, self.river_id, self.year)
+                plot = geoglows.plots.daily_averages(df)
+            case "retro-monthly":
+                df = get_plot_data(self.river_id, self.plot_name)
+                df['month'] = df.index.strftime('%m')
+                df = df.groupby('month').mean()
+                plot = geoglows.plots.monthly_averages(df)
+            case "retro-yearly":
+                df = get_plot_data(self.river_id, self.plot_name)
+                plot = geoglows.plots.annual_averages(df)
+            case "retro-yearly-volume":
+                df_retro_yearly = get_plot_data(self.river_id, "retro-yearly")
+                plot = plot_yearly_volumes(df_retro_yearly, self.river_id)
+            case "retro-status":
+                df_retro_daily = get_plot_data(self.river_id, "retro-daily")
+                df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
+                plot = plot_retro_annual_status(df_retro_daily, df_retro_monthly, self.river_id, self.year)
+            case "retro-fdc":
+                df_retro_daily = get_plot_data(self.river_id, "retro-daily")
+                plot = plot_retro_fdc(df_retro_daily, self.river_id)
             case "exceedance":
                 df_ensemble = get_plot_data(self.river_id, "forecast-ensembles")
                 df_return = get_plot_data(self.river_id, "return-periods")
                 plot = flood_probabilities(df_ensemble, df_return)
-            case "daily-averages":
-                df = get_plot_data(self.river_id, self.plot_name)
-                plot = geoglows.plots.daily_averages(df)
-            case "monthly-averages":
-                df = get_plot_data(self.river_id, self.plot_name)
-                plot = geoglows.plots.monthly_averages(df)
             case "ssi-monthly":
                 plot = plot_ssi_each_month_since_year(
                     self.river_id, 2010

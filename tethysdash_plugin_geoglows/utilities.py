@@ -6,12 +6,19 @@ import numpy as np
 import scipy.stats as stats
 import plotly.graph_objects as go
 import json
+import getpass
+import pwd
 
+
+username = os.environ.get("NGINX_USER", getpass.getuser())
+uid = pwd.getpwnam(username).pw_uid
+gid = pwd.getpwnam(username).pw_gid
 
 module_path = os.path.dirname(__file__)
 PLOTS_CACHE_PATH = os.path.join(module_path, "geoglows_plots_cache")
 if not os.path.exists(PLOTS_CACHE_PATH):
     os.makedirs(PLOTS_CACHE_PATH)
+    os.chown(PLOTS_CACHE_PATH, uid, gid)
 
 
 def get_plot_data(river_id, plot_name='forecast'):

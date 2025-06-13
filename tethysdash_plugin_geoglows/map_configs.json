@@ -15,7 +15,8 @@
                   }
                 }
               }
-            }
+            },
+            "layerVisibility": false
           }
         },
         {
@@ -32,7 +33,8 @@
                   }
                 }
               }
-            }
+            },
+            "layerVisibility": false
           }
         },
         {
@@ -46,7 +48,8 @@
                   "url": "https://floods.ssec.wisc.edu/tiles/RIVER-FLDglobal-composite/20250507/000000/{z}/{x}/{y}"
                 }
               }
-            }
+            },
+            "layerVisibility": false
           }
         },
         {
@@ -252,7 +255,8 @@
                   }
                 }
               ]
-            }
+            },
+            "layerVisibility": false
           }
         },
         {
@@ -260,6 +264,7 @@
             "type": "ImageLayer",
             "props": {
               "name": "Geoglows Streamflow",
+              "minZoomQuery": "15",
               "source": {
                 "type": "ESRI Image and Map Service",
                 "props": {

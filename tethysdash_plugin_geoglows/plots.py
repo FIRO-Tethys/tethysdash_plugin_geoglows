@@ -19,7 +19,11 @@ class Plots(base.DataSource):
         "exceedance",
         "return period",
     ]
-    visualization_description = "Depicts various streamflow based interactive charts based on the geoglows streamflow model. Charts included are derived from deterministic forecasts, ensemble forecasts, and statistical analysis"
+    visualization_description = (
+        "Depicts various streamflow based interactive charts based on the geoglows streamflow model. "
+        "Charts included are derived from deterministic forecasts, ensemble forecasts, and statistical "
+        "analysis."
+    )
     visualization_args = {
         "river_id": "text",
         "plot_name": [

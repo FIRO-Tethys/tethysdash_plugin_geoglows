@@ -284,13 +284,7 @@
         }
       ],
       "baseMap": "https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer",
-      "viewConfig": {
-        "center": [
-          4141402.808467102,
-          333015.41954539
-        ],
-        "zoom": 5.611202784048336
-      },
+      "map_extent":"4141402.808467102,333015.41954539,5.611202784048336",
       "layerControl": true
     },
     "h": 38,

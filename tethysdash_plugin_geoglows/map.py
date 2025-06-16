@@ -1,7 +1,7 @@
 from intake.source import base
 import os
 import json
-from .utilities import load_country_list, load_country_extents
+from .utilities import load_country_list, load_country_extents, convert_4326_to_3857
 
 
 class Map(base.DataSource):
@@ -41,19 +41,16 @@ class Map(base.DataSource):
             props = layer['configuration']['props']
             if props['name'] == 'Geoglows Streamflow':
                 props['source']['props']['params']['LAYERDEFS'] = f"0: rivercountry='{self.country}'"
-        # Update map viewConfig
-        map_config['viewConfig'] = self.get_viewConfig()
+        # Update map extent
+        map_config['map_extent'] = self.get_map_extent()
         return map_config
 
-    def get_viewConfig(self):
+    def get_map_extent(self):
         extent = Map.country_extents.get(self.country)
         if extent:
-            viewConfig = {
-                'projection': 'EPSG:4326',
-                'extent': extent,
-                'smoothExtentConstraint': True,
-                'showFullExtent': True
-            }
+            lon_center = (extent[0] + extent[2]) / 2
+            lat_center = (extent[1] + extent[3]) / 2
+            center = convert_4326_to_3857(lon_center, lat_center)
+            return f"{center[0]},{center[1]},6"
         else:
-            viewConfig = {'projection': 'EPSG:4326', 'center': [0, 20], 'zoom': 2}
-        return viewConfig
+            return "0, 2273030.9269876895,2"

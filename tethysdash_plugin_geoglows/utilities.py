@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 import json
 import getpass
 import pwd
+from pyproj import Transformer
 
 
 username = os.environ.get("NGINX_USER", getpass.getuser())
@@ -492,3 +493,19 @@ def load_country_extents():
             extent[3] += 0.1
         country_extent[country_name] = extent
     return country_extent
+
+
+def convert_4326_to_3857(lon, lat):
+    """
+    Convert WGS84 (EPSG:4326) to Web Mercator (EPSG:3857).
+
+    Parameters:
+        lat (float): Latitude in degrees.
+        lon (float): Longitude in degrees.
+
+    Returns:
+        (x, y): Tuple of coordinates in meters.
+    """
+    transformer = Transformer.from_crs(4326, 3857, always_xy=True)
+    x, y = transformer.transform(lon, lat)
+    return x, y

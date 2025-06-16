@@ -51,7 +51,6 @@ class Map(base.DataSource):
             lon_center = (extent[0] + extent[2]) / 2
             lat_center = (extent[1] + extent[3]) / 2
             center = convert_4326_to_3857(lon_center, lat_center)
-            print("center: ", center)
             return f"{center[0]},{center[1]},6"
         else:
             return "0, 2273030.9269876895,2"

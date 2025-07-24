@@ -40,9 +40,12 @@ class Map(base.DataSource):
         for layer in layers:
             props = layer['configuration']['props']
             if props['name'] == 'Geoglows Streamflow':
-                props['source']['props']['params']['LAYERDEFS'] = f"0: rivercountry='{self.country}'"
+                if self.country == 'All Countries':
+                    props['source']['props']['params']['LAYERDEFS'] = ''
+                else:
+                    props['source']['props']['params']['LAYERDEFS'] = f"0: rivercountry='{self.country}'"
         # Update map extent
-        map_config['map_extent'] = self.get_map_extent()
+        map_config['map_extent'] = {'extent': self.get_map_extent()}
         return map_config
 
     def get_map_extent(self):

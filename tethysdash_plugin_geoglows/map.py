@@ -20,6 +20,7 @@ class Map(base.DataSource):
     visualization_group = "GEOGLOWS"
     visualization_label = "GEOGLOWS Map"
     visualization_type = "map"
+    visualization_attribution = 'GEOGLOWS, NOAA'
     _user_parameters = []
 
     country_extents = load_country_extents()

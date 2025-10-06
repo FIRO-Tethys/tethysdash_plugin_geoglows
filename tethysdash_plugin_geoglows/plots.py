@@ -47,6 +47,7 @@ class Plots(base.DataSource):
     visualization_group = "GEOGLOWS"
     visualization_label = "GEOGLOWS Plots"
     visualization_type = "plotly"
+    visualization_attribution = 'pygeoglows'
     _user_parameters = []
 
     def __init__(self, river_id, plot_name, year, month, metadata=None):

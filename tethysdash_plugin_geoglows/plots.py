@@ -2,7 +2,7 @@ from intake.source import base
 import geoglows
 import pandas as pd
 import numpy as np
-from .utilities import (
+from .utils.plots import (
     get_plot_data, plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes, plot_retro_fdc,
     flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 )
@@ -30,6 +30,7 @@ class Plots(base.DataSource):
         "river_id": "text",
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
+            {"value": "forecast", "label": "Forecast (Bias Corrected)"},
             {"value": "forecast-stats", "label": "Forecast Statistics"},
             {"value": "forecast-ensembles", "label": "Forecast Ensembles"},
             {"value": "retro-simulation", "label": "Retrospective Simulation"},

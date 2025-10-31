@@ -2,9 +2,10 @@ from intake.source import base
 import geoglows
 import pandas as pd
 import numpy as np
-from .utils.plots import (
-    get_plot_data, plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes, plot_retro_fdc,
-    flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
+from .utils.plot_data import get_plot_data
+from .utils.plot import (
+    plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes,
+    plot_retro_fdc, plot_flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 )
 from datetime import datetime
 import json
@@ -129,7 +130,7 @@ class Plots(base.DataSource):
             case "exceedance":
                 df_ensemble = get_plot_data(self.river_id, "forecast-ensembles")
                 df_rp = get_plot_data(self.river_id, "return-periods")
-                plot = flood_probabilities(df_ensemble, df_rp)
+                plot = plot_flood_probabilities(df_ensemble, df_rp)
             case "ssi-monthly":
                 plot = plot_ssi_each_month_since_year(
                     self.river_id, 2010

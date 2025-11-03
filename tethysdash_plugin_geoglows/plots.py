@@ -54,6 +54,7 @@ class Plots(base.DataSource):
             {"value": "retro-status", "label": "Annual Status by Month"},  # need Year
             {"value": "retro-fdc", "label": "Flow Duration"},
             {"value": "exceedance", "label": "Exceedance"},
+            {"value": "exceedance-bias-corrected", "label": "Exceedance (Bias Corrected)"},
             {"value": "ssi-monthly", "label": "SSI Monthly"},
             {"value": "ssi-one-month", "label": "SSI One Month"}  # need Month
         ],
@@ -173,6 +174,12 @@ class Plots(base.DataSource):
                 df_ensemble = get_plot_data(self.river_id, "forecast-ensembles")
                 df_rp = get_plot_data(self.river_id, "return-periods")
                 plot = plot_flood_probabilities(df_ensemble, df_rp)
+            case "exceedance-bias-corrected":
+                df_forecast_ensembles = get_plot_data(self.river_id, "forecast-ensembles")
+                df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
+                    df_forecast_ensembles, simulated_data=df_retro_daily, observed_data=df_observed
+                )
+                plot = plot_flood_probabilities(df_forecast_ensembles_corrected, df_rp_corrected)
             case "ssi-monthly":
                 plot = plot_ssi_each_month_since_year(
                     self.river_id, 2010

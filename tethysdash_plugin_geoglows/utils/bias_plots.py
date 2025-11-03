@@ -327,7 +327,6 @@ def plot_forecast_ensembles_bias_corrected(
 def plot_forecast_stats_bias_corrected(
     df: pd.DataFrame,  # geoglows.data.forecast_stats(river_id)
     df_bias_corrected: pd.DataFrame,  # bias corrected version of above
-    *,
     rp_df: pd.DataFrame = None,  # original return periods
     rp_df_bias_corrected: pd.DataFrame = None,  # new calculated return periods
     plot_titles: list = None,
@@ -490,6 +489,109 @@ def plot_forecast_stats_bias_corrected(
             title='Legend',
             bgcolor='rgba(255,255,255,0.8)'
         ),
+    )
+
+    return go.Figure(scatter_plots, layout=layout)
+
+
+def plot_annual_averages_bias_corrected(
+    df_simulated: pd.DataFrame,  # daily geoglows data
+    df_bias_corrected: pd.DataFrame,  # bias corrected data
+    df_observed: pd.DataFrame = None,  # observed dataframe
+    plot_titles: list = None,
+    decade_averages: bool = False
+) -> go.Figure:
+    """
+    Plots annual average flows for simulated, bias-corrected, and optional observed data.
+    Automatically aggregates high-resolution data to annual averages.
+
+    Args:
+        df_simulated: simulated forecast (can already be annual or higher-resolution)
+        df_bias_corrected: bias-corrected forecast (higher-resolution)
+        df_observed: optional observed time series (higher-resolution)
+        plot_titles: dict or list to add to the plot title
+        decade_averages: if True, will plot mean flows for each decade
+
+    Returns:
+        go.Figure
+    """
+
+    scatter_plots = []
+
+    # --- Helper to compute annual average from any time resolution ---
+    def annual_mean(df_input):
+        df_input = df_input.copy()
+        df_input.index = pd.to_datetime(df_input.index)
+        df_input['year'] = df_input.index.year
+        annual_avg = df_input.groupby('year').mean()
+        return annual_avg
+
+    # --- Compute annual averages ---
+    df_sim_annual = annual_mean(df_simulated)
+    df_bc_annual = annual_mean(df_bias_corrected)
+    df_obs_annual = annual_mean(df_observed) if df_observed is not None else None
+
+    # --- Simulated ---
+    scatter_plots.append(go.Scatter(
+        name='Simulated Annual Flow',
+        x=df_sim_annual.index,
+        y=df_sim_annual.values.flatten(),
+        line=dict(color='blue'),
+        legendgroup='Simulated'
+    ))
+
+    # --- Bias-Corrected ---
+    scatter_plots.append(go.Scatter(
+        name='Bias-Corrected Annual Flow',
+        x=df_bc_annual.index,
+        y=df_bc_annual.values.flatten(),
+        line=dict(color='darkorange'),
+        legendgroup='Bias-Corrected'
+    ))
+
+    # --- Observed ---
+    if df_obs_annual is not None:
+        scatter_plots.append(go.Scatter(
+            name='Observed Annual Flow',
+            x=df_obs_annual.index,
+            y=df_obs_annual.values.flatten(),
+            line=dict(color='green'),
+            legendgroup='Observed'
+        ))
+
+    # --- Decade averages ---
+    if decade_averages:
+        def add_decade_traces(df_annual, label_prefix, color):
+            first_year = int(df_annual.index[0])
+            last_year = int(df_annual.index[-1])
+            decades = range(first_year - first_year % 10, last_year + 1, 10)
+            traces = []
+            for decade in decades:
+                decade_values = df_annual[(df_annual.index >= decade) & (df_annual.index < decade + 10)]
+                if len(decade_values) == 0:
+                    continue
+                mean_flow = decade_values.values.flatten().mean()
+                traces.append(go.Scatter(
+                    name=f'{label_prefix} {decade}s: {mean_flow:.2f} m³/s',
+                    x=[decade_values.index[0], decade_values.index[-1]],
+                    y=mean_flow * np.ones(2),
+                    line=dict(color=color, dash='dash'),
+                    hoverinfo='name',
+                    legendgroup=f'{label_prefix} Decade Averages',
+                    legendgrouptitle=dict(text=f'{label_prefix} Decade Averages')
+                ))
+            return traces
+
+        scatter_plots += add_decade_traces(df_sim_annual, 'Simulated', 'blue')
+        scatter_plots += add_decade_traces(df_bc_annual, 'Bias-Corrected', 'darkorange')
+        if df_obs_annual is not None:
+            scatter_plots += add_decade_traces(df_obs_annual, 'Observed', 'green')
+
+    # --- Layout ---
+    layout = go.Layout(
+        title=build_title('Annual Average Streamflow (Simulated vs Bias-Corrected vs Observed)', plot_titles),
+        yaxis={'title': 'Streamflow (m³/s)'},
+        xaxis={'title': 'Year'},
     )
 
     return go.Figure(scatter_plots, layout=layout)

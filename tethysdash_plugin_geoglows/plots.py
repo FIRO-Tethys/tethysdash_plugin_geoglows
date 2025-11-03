@@ -9,7 +9,8 @@ from .utils.simu_plots import (
 )
 from .utils.bias_plots import (
     plot_forecast_bias_correct, compute_return_periods,
-    plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected
+    plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected,
+    plot_annual_averages_bias_corrected
 )
 from datetime import datetime
 import json
@@ -48,6 +49,7 @@ class Plots(base.DataSource):
             {"value": "retro-monthly", "label": "Retrospective Monthly Averages"},
             {"value": "retro-monthly-bias-corrected", "label": "Retrospective Monthly Averages (Bias Corrected)"},
             {"value": "retro-yearly", "label": "Retrospective Yearly Averages"},
+            {"value": "retro-yearly-bias-corrected", "label": "Retrospective Yearly Averages (Bias Corrected)"},
             {"value": "retro-yearly-volume", "label": "Yearly Cumulative Discharge Volume"},
             {"value": "retro-status", "label": "Annual Status by Month"},  # need Year
             {"value": "retro-fdc", "label": "Flow Duration"},
@@ -87,7 +89,6 @@ class Plots(base.DataSource):
             df_observed["Streamflow (m3/s)"] = df_observed["Streamflow (m3/s)"].astype(float)
             df_observed.index = df_observed.index.tz_localize("UTC")
             df_retro_daily = get_plot_data(self.river_id, "retro-daily")
-            # TODO check if it's historical or forecast data
             df_retro_daily_corrected = geoglows.bias.correct_historical(df_retro_daily, df_observed)
             df_rp_corrected = compute_return_periods(df_retro_daily_corrected, self.river_id)
 
@@ -154,6 +155,10 @@ class Plots(base.DataSource):
             case "retro-yearly":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.annual_averages(df)
+            case "retro-yearly-bias-corrected":
+                plot = plot_annual_averages_bias_corrected(
+                    df_simulated=df_retro_daily, df_bias_corrected=df_retro_daily_corrected, df_observed=df_observed
+                )
             case "retro-yearly-volume":
                 df_retro_yearly = get_plot_data(self.river_id, "retro-yearly")
                 plot = plot_yearly_volumes(df_retro_yearly, self.river_id)

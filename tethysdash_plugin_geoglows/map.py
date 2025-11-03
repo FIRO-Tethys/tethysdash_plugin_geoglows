@@ -1,7 +1,7 @@
 from intake.source import base
 import os
 import json
-from .utilities import load_country_list, load_country_extents, convert_4326_to_3857
+from .utils.map import load_country_list, load_country_extents, convert_4326_to_3857
 
 
 class Map(base.DataSource):
@@ -31,7 +31,7 @@ class Map(base.DataSource):
 
     def read(self):
         module_path = os.path.dirname(__file__)
-        file_path = f'{module_path}/map_configs.json'
+        file_path = f'{module_path}/data/map_configs.json'
         map_config = {}
         with open(file_path) as file:
             map_config = json.load(file)

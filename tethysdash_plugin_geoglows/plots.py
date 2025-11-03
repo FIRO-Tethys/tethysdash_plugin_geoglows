@@ -7,7 +7,10 @@ from .utils.simu_plots import (
     plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes,
     plot_retro_fdc, plot_flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 )
-from .utils.bias_plots import (plot_forecast_bias_correct, compute_return_periods)
+from .utils.bias_plots import (
+    plot_forecast_bias_correct, compute_return_periods,
+    plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected
+)
 from datetime import datetime
 import json
 
@@ -34,7 +37,9 @@ class Plots(base.DataSource):
             {"value": "forecast", "label": "Forecast"},
             {"value": "forecast-bias-corrected", "label": "Forecast (Bias Corrected)"},
             {"value": "forecast-stats", "label": "Forecast Statistics"},
+            {"value": "forecast-stats-bias-corrected", "label": "Forecast Statistics (Bias Corrected)"},
             {"value": "forecast-ensembles", "label": "Forecast Ensembles"},
+            {"value": "forecast-ensembles-bias-corrected", "label": "Forecast Ensembles (Bias Corrected)"},
             {"value": "retro-simulation", "label": "Retrospective Simulation"},
             {"value": "retro-simulation-bias-corrected", "label": "Retrospective Simulation (Bias Corrected)"},
             {"value": "bias-performance", "label": "Bias Correction Performance"},
@@ -69,7 +74,9 @@ class Plots(base.DataSource):
         super(Plots, self).__init__(metadata=metadata)
 
     def read(self):
-        df_observed = None
+        df_rp = get_plot_data(self.river_id, "return-periods")
+        df_observed, df_rp_corrected = None, None
+        df_retro_daily, df_retro_daily_corrected = None, None
         if self.observed_historical_data and 'bias' in self.plot_name:
             try:
                 dict_bias = json.loads(self.observed_historical_data)
@@ -81,9 +88,8 @@ class Plots(base.DataSource):
             df_observed.index = df_observed.index.tz_localize("UTC")
             df_retro_daily = get_plot_data(self.river_id, "retro-daily")
             # TODO check if it's historical or forecast data
-            df_corrected = geoglows.bias.correct_historical(df_retro_daily, df_observed)
-
-        df_rp = get_plot_data(self.river_id, "return-periods")
+            df_retro_daily_corrected = geoglows.bias.correct_historical(df_retro_daily, df_observed)
+            df_rp_corrected = compute_return_periods(df_retro_daily_corrected, self.river_id)
 
         match self.plot_name:
             case "forecast":
@@ -95,38 +101,56 @@ class Plots(base.DataSource):
                 df_forecast_corrected = geoglows.bias.correct_forecast(
                     df_forecast, simulated_data=df_retro_daily, observed_data=df_observed
                 )
-                df_return = get_plot_data(self.river_id, "return-periods")
-                df_retro_daily_corrected = geoglows.bias.correct_historical(df_retro_daily, df_observed)
-                df_return_corrected = compute_return_periods(df_retro_daily_corrected, self.river_id)
                 plot = plot_forecast_bias_correct(
-                    df_forecast, df_forecast_corrected, rp_df_sim=df_return, rp_df_corrected=df_return_corrected
+                    df_forecast, df_forecast_corrected, rp_df_sim=df_rp, rp_df_corrected=df_rp_corrected
                 )
             case "forecast-stats":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.forecast_stats(df, rp_df=df_rp)
+            case "forecast-stats-bias-corrected":
+                df_forecast_stats = get_plot_data(self.river_id, "forecast-stats")
+                df_forecast_stats_corrected = geoglows.bias.correct_forecast(
+                    df_forecast_stats, simulated_data=df_retro_daily, observed_data=df_observed
+                )
+                plot = plot_forecast_stats_bias_corrected(
+                    df_forecast_stats, df_forecast_stats_corrected, rp_df=df_rp, rp_df_bias_corrected=df_rp_corrected
+                )
             case "forecast-ensembles":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.forecast_ensembles(df, rp_df=df_rp)
+            case "forecast-ensembles-bias-corrected":
+                df_forecast_ensembles = get_plot_data(self.river_id, "forecast-ensembles")
+                df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
+                    df_forecast_ensembles, simulated_data=df_retro_daily, observed_data=df_observed
+                )
+                plot = plot_forecast_ensembles_bias_corrected(
+                    df=df_forecast_ensembles,
+                    df_bias_corrected=df_forecast_ensembles_corrected,
+                    rp_df=df_rp,
+                    rp_df_bias_corrected=df_rp_corrected
+                )
             case "retro-simulation":
                 df_retro_daily = get_plot_data(self.river_id, "retro-daily")
                 df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
                 plot = plot_retro_simulation(df_retro_daily, df_retro_monthly, self.river_id)
             case "retro-simulation-bias-corrected":
-                plot = geoglows.plots.corrected_retrospective(df_corrected, df_retro_daily, df_observed, df_rp)
+                plot = geoglows.plots.corrected_retrospective(
+                    df_retro_daily_corrected, df_retro_daily, df_observed, df_rp
+                )
             case "bias-performance":
-                plot = geoglows.plots.corrected_scatterplots(df_corrected, df_retro_daily, df_observed)
+                plot = geoglows.plots.corrected_scatterplots(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-daily":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.daily_averages(df)
             case "retro-daily-bias-corrected":
-                plot = geoglows.plots.corrected_day_average(df_corrected, df_retro_daily, df_observed)
+                plot = geoglows.plots.corrected_day_average(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-monthly":
                 df = get_plot_data(self.river_id, self.plot_name)
                 df['month'] = df.index.strftime('%m')
                 df = df.groupby('month').mean()
                 plot = geoglows.plots.monthly_averages(df)
             case "retro-monthly-bias-corrected":
-                plot = geoglows.plots.corrected_month_average(df_corrected, df_retro_daily, df_observed)
+                plot = geoglows.plots.corrected_month_average(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-yearly":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.annual_averages(df)

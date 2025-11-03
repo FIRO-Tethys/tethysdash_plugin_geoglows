@@ -222,3 +222,274 @@ def timezone_label(timezone: str = None):
     # convert float number of hours to HH:MM format
     utc_offset = f'{int(utc_offset):+03d}:{int((utc_offset % 1) * 60):02d}'
     return f'Datetime ({timezone} {utc_offset})'
+
+
+def plot_forecast_ensembles_bias_corrected(
+    df: pd.DataFrame,  # geoglows.data.forecast_ensemble
+    df_bias_corrected: pd.DataFrame,  # bias corrected version of above dataframe
+    rp_df: pd.DataFrame = None,
+    rp_df_bias_corrected: pd.DataFrame = None,
+    plot_titles: list = None,
+) -> go.Figure:
+    """
+    Plots simulated and bias-corrected streamflow ensembles with optional return periods.
+
+    Groups in legend:
+        - Simulated Ensemble
+        - Bias-Corrected Ensemble
+        - Simulated Return Periods (toggleable)
+        - Bias-Corrected Return Periods (toggleable)
+    """
+
+    scatter_plots = []
+    max_flows = []
+
+    startdate = df.index[0]
+    enddate = df.index[-1]
+
+    def process_ensemble(df_input, color, legend_group, label_prefix):
+        traces = []
+        # High-resolution ensemble_52
+        if 'ensemble_52' in df_input.columns:
+            traces.append(go.Scatter(
+                name=f"{label_prefix} Ensemble",
+                x=df_input.index,
+                y=df_input['ensemble_52'],
+                line=dict(color=color, width=2),
+                legendgroup=legend_group,
+                showlegend=True
+            ))
+            max_flows.append(df_input['ensemble_52'].max())
+
+        # Ensembles 01-51 (may have NaNs)
+        for i in range(1, 52):
+            col = f'ensemble_{i:02}'
+            if col in df_input.columns:
+                x_vals = df_input[col].dropna().index
+                y_vals = df_input[col].dropna()
+                traces.append(go.Scatter(
+                    name=None,
+                    x=x_vals,
+                    y=y_vals,
+                    line=dict(color=color, width=1),
+                    opacity=0.4,
+                    legendgroup=legend_group,
+                    showlegend=False
+                ))
+                if not y_vals.empty:
+                    max_flows.append(y_vals.max())
+        return traces
+
+    # --- Process ensembles ---
+    scatter_plots += process_ensemble(df, 'royalblue', 'Simulated Ensemble', 'Simulated')
+    scatter_plots += process_ensemble(df_bias_corrected, 'darkorange', 'Bias-Corrected Ensemble', 'Bias-Corrected')
+
+    y_max = max(max_flows) if max_flows else 0
+
+    # --- Return periods (toggleable) ---
+    def add_rp_traces(rp_df, label_prefix):
+        traces = _rperiod_scatters(startdate, enddate, rp_df, y_max, label_prefix=label_prefix, show=True)
+        # Make all RP traces initially hidden but toggleable
+        for t in traces:
+            t.update(showlegend=True, visible='legendonly', legendgroup=f"{label_prefix} Return Periods")
+        return traces
+
+    if rp_df is not None:
+        scatter_plots += add_rp_traces(rp_df, 'Simulated')
+
+    if rp_df_bias_corrected is not None:
+        scatter_plots += add_rp_traces(rp_df_bias_corrected, 'Bias-Corrected')
+
+    # --- Layout ---
+    layout = go.Layout(
+        title=build_title('Simulated vs Bias-Corrected Ensemble Forecasts', plot_titles),
+        yaxis={'title': 'Streamflow (m<sup>3</sup>/s)', 'range': [0, 'auto']},
+        xaxis={
+            'title': timezone_label(df.index.tz),
+            'range': [startdate, enddate],
+            'hoverformat': '%d %b %Y %X',
+            'tickformat': '%b %d %Y'
+        },
+        legend=dict(
+            orientation='v',
+            yanchor='top',
+            y=1.0,
+            xanchor='left',
+            x=1.02,
+            title='Legend',
+            bgcolor='rgba(255,255,255,0.8)',
+        ),
+    )
+
+    return go.Figure(scatter_plots, layout=layout)
+
+
+def plot_forecast_stats_bias_corrected(
+    df: pd.DataFrame,  # geoglows.data.forecast_stats(river_id)
+    df_bias_corrected: pd.DataFrame,  # bias corrected version of above
+    *,
+    rp_df: pd.DataFrame = None,  # original return periods
+    rp_df_bias_corrected: pd.DataFrame = None,  # new calculated return periods
+    plot_titles: list = None,
+    show_maxmin: bool = False,
+) -> go.Figure:
+    """
+    Plots simulated and bias-corrected streamflow with optional max/min envelope, percentiles, and return periods.
+
+    Groups in legend:
+        - Simulated
+        - Bias-Corrected
+        - Simulated Return Periods
+        - Bias-Corrected Return Periods
+    """
+    scatter_plots = []
+    max_flows = []
+
+    startdate = df.index[0]
+    enddate = df.index[-1]
+
+    def process_stats(df_input, label_prefix, color_median='red', color_avg='blue'):
+        dates_stats = df_input['flow_avg'].dropna().index.tolist()
+        dates_hires = df_input['high_res'].dropna().index.tolist()
+        flow_max = df_input['flow_max'].dropna().tolist()
+        flow_min = df_input['flow_min'].dropna().tolist()
+        flow_75 = df_input['flow_75p'].dropna().tolist()
+        flow_25 = df_input['flow_25p'].dropna().tolist()
+        flow_avg = df_input['flow_avg'].dropna().tolist()
+        flow_med = df_input['flow_med'].dropna().tolist()
+        high_res = df_input['high_res'].dropna().tolist()
+        y_max_local = max(flow_max + flow_75 + flow_avg + high_res)
+        max_flows.append(y_max_local)
+
+        traces = []
+
+        # Max/Min envelope
+        maxmin_visible = True if show_maxmin else 'legendonly'
+        traces.append(go.Scatter(
+            name=f"{label_prefix} Max & Min Flow",
+            x=dates_stats + dates_stats[::-1],
+            y=flow_max + flow_min[::-1],
+            legendgroup=f"{label_prefix} Boundaries",
+            fill='toself',
+            visible=maxmin_visible,
+            line=dict(color='lightblue', dash='dash')
+        ))
+        traces.append(go.Scatter(
+            name=f"{label_prefix} Maximum",
+            x=dates_stats,
+            y=flow_max,
+            legendgroup=f"{label_prefix} Boundaries",
+            showlegend=False,
+            visible=maxmin_visible,
+            line=dict(color='darkblue', dash='dash')
+        ))
+        traces.append(go.Scatter(
+            name=f"{label_prefix} Minimum",
+            x=dates_stats,
+            y=flow_min,
+            legendgroup=f"{label_prefix} Boundaries",
+            showlegend=False,
+            visible=maxmin_visible,
+            line=dict(color='darkblue', dash='dash')
+        ))
+
+        # Percentile envelope
+        traces.append(go.Scatter(
+            name=f"{label_prefix} 25-75 Percentile Flow",
+            x=dates_stats + dates_stats[::-1],
+            y=flow_75 + flow_25[::-1],
+            legendgroup=f"{label_prefix} Percentiles",
+            fill='toself',
+            line=dict(color='lightgreen')
+        ))
+        traces.append(go.Scatter(
+            name=f"{label_prefix} 75%",
+            x=dates_stats,
+            y=flow_75,
+            legendgroup=f"{label_prefix} Percentiles",
+            showlegend=False,
+            line=dict(color='green')
+        ))
+        traces.append(go.Scatter(
+            name=f"{label_prefix} 25%",
+            x=dates_stats,
+            y=flow_25,
+            legendgroup=f"{label_prefix} Percentiles",
+            showlegend=False,
+            line=dict(color='green')
+        ))
+
+        # High-resolution forecast
+        traces.append(go.Scatter(
+            name=f"{label_prefix} High-Res Forecast",
+            x=dates_hires,
+            y=high_res,
+            line=dict(color='black'),
+            legendgroup=f"{label_prefix} Forecast"
+        ))
+
+        # Average and median
+        traces.append(go.Scatter(
+            name=f"{label_prefix} Average Flow",
+            x=dates_stats,
+            y=flow_avg,
+            line=dict(color=color_avg),
+            legendgroup=f"{label_prefix} Forecast"
+        ))
+        traces.append(go.Scatter(
+            name=f"{label_prefix} Median Flow",
+            x=dates_stats,
+            y=flow_med,
+            line=dict(color=color_median),
+            legendgroup=f"{label_prefix} Forecast"
+        ))
+
+        return traces, y_max_local
+
+    # --- Process simulated ---
+    traces_sim, y_max_sim = process_stats(df, 'Simulated')
+    scatter_plots += traces_sim
+
+    # --- Process bias-corrected ---
+    traces_bc, y_max_bc = process_stats(df_bias_corrected, 'Bias-Corrected')
+    scatter_plots += traces_bc
+
+    y_max = max(y_max_sim, y_max_bc)
+
+    # --- Return periods (toggleable) ---
+    def add_rp_traces(rp_df_input, label_prefix):
+        traces = _rperiod_scatters(
+            startdate, enddate, rp_df_input, y_max, label_prefix=label_prefix, show=True
+        )
+        for t in traces:
+            t.update(showlegend=True, visible='legendonly', legendgroup=f"{label_prefix} Return Periods")
+        return traces
+
+    if rp_df is not None:
+        scatter_plots += add_rp_traces(rp_df, 'Simulated')
+
+    if rp_df_bias_corrected is not None:
+        scatter_plots += add_rp_traces(rp_df_bias_corrected, 'Bias-Corrected')
+
+    # --- Layout ---
+    layout = go.Layout(
+        title=build_title('Simulated vs Bias-Corrected Forecasted Streamflow', plot_titles),
+        yaxis={'title': 'Streamflow (m<sup>3</sup>/s)', 'range': [0, 'auto']},
+        xaxis={
+            'title': timezone_label(df.index.tz),
+            'range': [startdate, enddate],
+            'hoverformat': '%d %b %Y %X',
+            'tickformat': '%b %d %Y'
+        },
+        legend=dict(
+            orientation='v',
+            yanchor='top',
+            y=1.0,
+            xanchor='left',
+            x=1.02,
+            title='Legend',
+            bgcolor='rgba(255,255,255,0.8)'
+        ),
+    )
+
+    return go.Figure(scatter_plots, layout=layout)

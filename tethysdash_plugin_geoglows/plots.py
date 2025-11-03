@@ -3,10 +3,11 @@ import geoglows
 import pandas as pd
 import numpy as np
 from .utils.plot_data import get_plot_data
-from .utils.plot import (
+from .utils.simu_plots import (
     plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes,
     plot_retro_fdc, plot_flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_one_month_each_year
 )
+from .utils.bias_plots import (plot_forecast_bias_correct, compute_return_periods)
 from datetime import datetime
 import json
 
@@ -31,7 +32,7 @@ class Plots(base.DataSource):
         "river_id": "text",
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
-            {"value": "forecast", "label": "Forecast (Bias Corrected)"},
+            {"value": "forecast-bias-corrected", "label": "Forecast (Bias Corrected)"},
             {"value": "forecast-stats", "label": "Forecast Statistics"},
             {"value": "forecast-ensembles", "label": "Forecast Ensembles"},
             {"value": "retro-simulation", "label": "Retrospective Simulation"},
@@ -88,6 +89,18 @@ class Plots(base.DataSource):
             case "forecast":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.forecast(df, rp_df=df_rp)
+            case "forecast-bias-corrected":
+                df_forecast = get_plot_data(self.river_id, "forecast")
+                df_retro_daily = get_plot_data(self.river_id, "retro-daily")
+                df_forecast_corrected = geoglows.bias.correct_forecast(
+                    df_forecast, simulated_data=df_retro_daily, observed_data=df_observed
+                )
+                df_return = get_plot_data(self.river_id, "return-periods")
+                df_retro_daily_corrected = geoglows.bias.correct_historical(df_retro_daily, df_observed)
+                df_return_corrected = compute_return_periods(df_retro_daily_corrected, self.river_id)
+                plot = plot_forecast_bias_correct(
+                    df_forecast, df_forecast_corrected, rp_df_sim=df_return, rp_df_corrected=df_return_corrected
+                )
             case "forecast-stats":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.forecast_stats(df, rp_df=df_rp)

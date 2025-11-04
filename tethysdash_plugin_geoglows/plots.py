@@ -58,6 +58,7 @@ class Plots(base.DataSource):
             {"value": "ssi-monthly", "label": "SSI Monthly"},
             {"value": "ssi-one-month", "label": "SSI One Month"}  # need Month
         ],
+        "bias_correction": ["None", "Local", "Global"],
         "month": [{"value": i, "label": i} for i in range(1, 13)],
         "year": [{"value": i, "label": i} for i in range(1940, datetime.now().year)],
         "observed_historical_data": "csv-uploader"
@@ -68,12 +69,13 @@ class Plots(base.DataSource):
     visualization_attribution = 'pygeoglows'
     _user_parameters = []
 
-    def __init__(self, river_id, plot_name, year, month, observed_historical_data=None, metadata=None):
+    def __init__(self, river_id, plot_name, year, month, observed_historical_data=None, bias_correction = "None", metadata=None):
         self.river_id = int(river_id)
         self.plot_name = plot_name
         self.year = year
         self.month = month
         self.observed_historical_data = observed_historical_data
+        self.bias_correction = bias_correction
         super(Plots, self).__init__(metadata=metadata)
 
     def read(self):
@@ -90,7 +92,10 @@ class Plots(base.DataSource):
             df_observed["Streamflow (m3/s)"] = df_observed["Streamflow (m3/s)"].astype(float)
             df_observed.index = df_observed.index.tz_localize("UTC")
             df_retro_daily = get_plot_data(self.river_id, "retro-daily")
-            df_retro_daily_corrected = geoglows.bias.correct_historical(df_retro_daily, df_observed)
+            if self.bias_correction == "Local":
+                df_retro_daily_corrected = geoglows.bias.correct_historical_local(df_retro_daily, df_observed)
+            elif self.bias_correction == "Global":
+                df_retro_daily_corrected = geoglows.bias.correct_historical_global(df_retro_daily, df_observed)
             df_rp_corrected = compute_return_periods(df_retro_daily_corrected, self.river_id)
 
         match self.plot_name:

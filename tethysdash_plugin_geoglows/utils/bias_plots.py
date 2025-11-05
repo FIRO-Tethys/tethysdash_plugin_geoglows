@@ -595,3 +595,167 @@ def plot_annual_averages_bias_corrected(
     )
 
     return go.Figure(scatter_plots, layout=layout)
+
+def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected, df_retro_monthly_og, df_retro_monthly_corrected, river_id):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_retro_daily_og.index,
+        y=df_retro_daily_og[river_id],
+        mode='lines',
+        name='Daily Average Simulation'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=df_retro_daily_corrected.index,
+        y=df_retro_daily_corrected[river_id],
+        mode='lines',
+        name='Daily Average Bias Corrected'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_retro_monthly_og.index,
+        y=df_retro_monthly_og[river_id],
+        mode='lines',
+        name='Monthly Average Simulation',
+        line=dict(color='rgb(0, 166, 255)'),
+        visible='legendonly'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=df_retro_monthly_corrected.index,
+        y=df_retro_monthly_corrected[river_id],
+        mode='lines',
+        name='Monthly Average Corrected',
+        line=dict(color='rgb(0, 166, 255)'),
+        visible='legendonly'
+    ))
+
+    fig.update_layout(
+        title=f'Retrospective Simulation for River: {river_id}',
+        legend=dict(orientation='h', x=0, y=0.9),
+        hovermode='x',
+        yaxis=dict(
+            title="Discharge (m³/s)",
+            range=[0, None]
+        ),
+        xaxis=dict(
+            title="Date (UTC +00:00)",
+            type='date',
+            # autorange=False,
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1 Year", step="year", stepmode="backward"),
+                    dict(count=5, label="5 Years", step="year", stepmode="backward"),
+                    dict(count=10, label="10 Years", step="year", stepmode="backward"),
+                    dict(count=30, label="30 Years", step="year", stepmode="backward"),
+                    dict(count=len(df_retro_daily_og.index), label="All", step="day")
+                ]
+            ),
+            rangeslider=dict(visible=True)
+        )
+    )
+
+    return fig
+
+def plot_bias_corrected(df_og, df_corrected, sim_name, bias_name, river_id):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_og.index,
+        y=df_og[river_id],
+        mode='lines',
+        name=sim_name
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=df_corrected.index,
+        y=df_corrected[river_id],
+        mode='lines',
+        name=bias_name
+    ))
+
+    fig.update_layout(
+        title=f'Retrospective Simulation for River: {river_id}',
+        legend=dict(orientation='h', x=0, y=0.9),
+        hovermode='x',
+        yaxis=dict(
+            title="Discharge (m³/s)",
+            range=[0, None]
+        ),
+        xaxis=dict(
+            title="Date (UTC +00:00)",
+            type='date',
+            # autorange=False,
+        )
+    )
+
+    return fig
+
+
+def plot_yearly_volumes_corrected(df_retro_yearly_og, df_retro_yearly_corrected, river_id):
+    seconds_per_year = 60 * 60 * 24 * 365.25
+    df_retro_yearly_og['year'] = df_retro_yearly_og.index.strftime('%Y').astype('int')
+    df_retro_yearly_og['volume'] = df_retro_yearly_og[river_id] * seconds_per_year / 1e6
+    df_retro_yearly_og['5year_start'] = df_retro_yearly_og['year'] // 5 * 5
+    df_5_year_avgs_og = df_retro_yearly_og.groupby('5year_start').mean().drop(['year', river_id], axis=1).reset_index()
+
+    df_retro_yearly_corrected['year'] = df_retro_yearly_corrected.index.strftime('%Y').astype('int')
+    df_retro_yearly_corrected['volume'] = df_retro_yearly_corrected[river_id] * seconds_per_year / 1e6
+    df_retro_yearly_corrected['5year_start'] = df_retro_yearly_corrected['year'] // 5 * 5
+    df_5_year_avgs_corrected = df_retro_yearly_corrected.groupby('5year_start').mean().drop(['year', river_id], axis=1).reset_index()
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_retro_yearly_og['year'],
+        y=df_retro_yearly_og['volume'],
+        mode='lines',
+        name='Annual Volume Simulation',
+        marker=dict(color='rgb(0, 166, 255)')
+    ))
+
+    for idx, row in df_5_year_avgs_og.iterrows():
+        year = row['5year_start']
+        val = row['volume']
+        fig.add_trace(go.Scatter(
+            x=[year, year + 5],
+            y=[val, val],
+            mode='lines',
+            legendgroup='5 Year Average',
+            showlegend=idx == 0,  # TODO waht does this do?
+            name='5 Year Average Simulation',
+            marker=dict(color='red')
+        ))
+        
+    fig.add_trace(go.Scatter(
+        x=df_retro_yearly_corrected['year'],
+        y=df_retro_yearly_corrected['volume'],
+        mode='lines',
+        name='Annual Volume Corrected',
+        marker=dict(color='rgb(0, 166, 255)')
+    ))
+
+    for idx, row in df_5_year_avgs_corrected.iterrows():
+        year = row['5year_start']
+        val = row['volume']
+        fig.add_trace(go.Scatter(
+            x=[year, year + 5],
+            y=[val, val],
+            mode='lines',
+            legendgroup='5 Year Average',
+            showlegend=idx == 0,  # TODO waht does this do?
+            name='5 Year Average Corrected',
+            marker=dict(color='red')
+        ))
+
+    fig.update_layout(
+        title=f'Yearly Cumulative Discharge Volume for River: {river_id}',
+        legend=dict(orientation='h'),
+        hovermode='x',
+        xaxis=dict(title='Year'),
+        yaxis=dict(
+            title='Million Cubic Meters (m³ * 10^6)',
+            range=[0, None]
+        )
+    )
+
+    return fig

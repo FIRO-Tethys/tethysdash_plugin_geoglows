@@ -10,7 +10,7 @@ from .utils.simu_plots import (
 from .utils.bias_plots import (
     plot_forecast_bias_correct, compute_return_periods,
     plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected,
-    plot_annual_averages_bias_corrected
+    plot_annual_averages_bias_corrected, plot_yearly_volumes_corrected, plot_retro_simulation_corrected
 )
 from datetime import datetime
 import json
@@ -158,14 +158,20 @@ class Plots(base.DataSource):
                     rp_df_bias_corrected=df_rp_corrected
                 )
             case "retro-simulation":
-                df_retro_daily = get_plot_data(self.river_id, "retro-daily")
+                df_retro_daily = get_plot_data(self.river_id, "retro-daily")y
                 df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
                 plot = plot_retro_simulation(df_retro_daily, df_retro_monthly, self.river_id)
             case "retro-simulation-bias-corrected":
+                
                 if self.bias_correction == "Local":
                     plot = geoglows.plots.corrected_retrospective(
                         df_retro_daily_corrected, df_retro_daily, df_observed, df_rp
                 )
+                elif self.bias_correction == "Global":
+                    df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
+                    plot = plot_retro_simulation_corrected(
+                        df_retro_daily, df_retro_daily_corrected, df_retro_monthly,
+                        df_retro_monthly_corrected, self.river_id) #TODO
             case "bias-performance":
                 plot = geoglows.plots.corrected_scatterplots(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-daily":
@@ -190,9 +196,19 @@ class Plots(base.DataSource):
                     plot = plot_annual_averages_bias_corrected(
                         df_simulated=df_retro_daily, df_bias_corrected=df_retro_daily_corrected, df_observed=df_observed
                     )
+                elif self.bias_correction == "Global":
+                    plot = plot_annual_averages_bias_corrected(
+                        df_simulated=df_retro_daily, df_bias_corrected=df_retro_daily_corrected, df_observed=None
+                    )
             case "retro-yearly-volume":
                 df_retro_yearly = get_plot_data(self.river_id, "retro-yearly")
-                plot = plot_yearly_volumes(df_retro_yearly, self.river_id)
+                if self.bias == "None":
+                    plot = plot_yearly_volumes(df_retro_yearly, self.river_id)
+                else:
+                    plot = plot_yearly_volumes_corrected(
+                        df_retro_yearly_og=df_retro_yearly, df_retro_yearly_corrected=df_retro_daily_corrected,
+                       river_id=self.river_id
+                    )#TODO - should it take in yearly data?
             case "retro-status":
                 df_retro_daily = get_plot_data(self.river_id, "retro-daily")
                 df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
@@ -206,9 +222,14 @@ class Plots(base.DataSource):
                 plot = plot_flood_probabilities(df_ensemble, df_rp)
             case "exceedance-bias-corrected":
                 df_forecast_ensembles = get_plot_data(self.river_id, "forecast-ensembles")
-                df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
-                    df_forecast_ensembles, simulated_data=df_retro_daily, observed_data=df_observed
-                )
+                if self.bias_correction == "Local":
+                    df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
+                        df_forecast_ensembles, simulated_data=df_retro_daily, observed_data=df_observed
+                    )
+                elif self.bias_correction == "Global":
+                    df_forecast_ensembles_corrected = geoglows.bias.discharge_transform(
+                        df_forecast_ensembles, self.river_id
+                    )
                 plot = plot_flood_probabilities(df_forecast_ensembles_corrected, df_rp_corrected)
             case "ssi-monthly":
                 plot = plot_ssi_each_month_since_year(

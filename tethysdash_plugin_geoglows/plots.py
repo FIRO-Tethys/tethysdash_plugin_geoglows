@@ -162,8 +162,9 @@ class Plots(base.DataSource):
                 df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
                 plot = plot_retro_simulation(df_retro_daily, df_retro_monthly, self.river_id)
             case "retro-simulation-bias-corrected":
-                plot = geoglows.plots.corrected_retrospective(
-                    df_retro_daily_corrected, df_retro_daily, df_observed, df_rp
+                if self.bias_correction == "Local":
+                    plot = geoglows.plots.corrected_retrospective(
+                        df_retro_daily_corrected, df_retro_daily, df_observed, df_rp
                 )
             case "bias-performance":
                 plot = geoglows.plots.corrected_scatterplots(df_retro_daily_corrected, df_retro_daily, df_observed)
@@ -171,21 +172,24 @@ class Plots(base.DataSource):
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.daily_averages(df)
             case "retro-daily-bias-corrected":
-                plot = geoglows.plots.corrected_day_average(df_retro_daily_corrected, df_retro_daily, df_observed)
+                if self.bias_correction == "Local":
+                    plot = geoglows.plots.corrected_day_average(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-monthly":
                 df = get_plot_data(self.river_id, self.plot_name)
                 df['month'] = df.index.strftime('%m')
                 df = df.groupby('month').mean()
                 plot = geoglows.plots.monthly_averages(df)
             case "retro-monthly-bias-corrected":
-                plot = geoglows.plots.corrected_month_average(df_retro_daily_corrected, df_retro_daily, df_observed)
+                if self.bias_correction == "Local":
+                    plot = geoglows.plots.corrected_month_average(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-yearly":
                 df = get_plot_data(self.river_id, self.plot_name)
                 plot = geoglows.plots.annual_averages(df)
             case "retro-yearly-bias-corrected":
-                plot = plot_annual_averages_bias_corrected(
-                    df_simulated=df_retro_daily, df_bias_corrected=df_retro_daily_corrected, df_observed=df_observed
-                )
+                if self.bias_correction == "Local":
+                    plot = plot_annual_averages_bias_corrected(
+                        df_simulated=df_retro_daily, df_bias_corrected=df_retro_daily_corrected, df_observed=df_observed
+                    )
             case "retro-yearly-volume":
                 df_retro_yearly = get_plot_data(self.river_id, "retro-yearly")
                 plot = plot_yearly_volumes(df_retro_yearly, self.river_id)

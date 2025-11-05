@@ -95,7 +95,9 @@ class Plots(base.DataSource):
             if self.bias_correction == "Local":
                 df_retro_daily_corrected = geoglows.bias.correct_historical_local(df_retro_daily, df_observed)
             elif self.bias_correction == "Global":
-                df_retro_daily_corrected = geoglows.bias.correct_historical_global(df_retro_daily, df_observed)
+                df_retro_daily_corrected = geoglows.bias.discharge_transform(df_retro_daily, self.river_id)
+            elif self.bias_correction == "None":
+                df_retro_daily_corrected = df_retro_daily
             df_rp_corrected = compute_return_periods(df_retro_daily_corrected, self.river_id)
 
         match self.plot_name:
@@ -105,9 +107,16 @@ class Plots(base.DataSource):
             case "forecast-bias-corrected":
                 df_forecast = get_plot_data(self.river_id, "forecast")
                 df_retro_daily = get_plot_data(self.river_id, "retro-daily")
-                df_forecast_corrected = geoglows.bias.correct_forecast(
-                    df_forecast, simulated_data=df_retro_daily, observed_data=df_observed
-                )
+                if self.bias_correction == "Local":
+                    df_forecast_corrected = geoglows.bias.correct_forecast(
+                        df_forecast, simulated_data=df_retro_daily, observed_data=df_observed
+                    )
+                elif self.bias_correction == "Global":
+                    df_forecast_corrected = geoglows.bias.discharge_transform(
+                        df_forecast, self.river_id
+                    )
+                elif self.bias_correction == "None":
+                    df_forecast_corrected = df_forecast
                 plot = plot_forecast_bias_correct(
                     df_forecast, df_forecast_corrected, rp_df_sim=df_rp, rp_df_corrected=df_rp_corrected
                 )
@@ -116,9 +125,16 @@ class Plots(base.DataSource):
                 plot = geoglows.plots.forecast_stats(df, rp_df=df_rp)
             case "forecast-stats-bias-corrected":
                 df_forecast_stats = get_plot_data(self.river_id, "forecast-stats")
-                df_forecast_stats_corrected = geoglows.bias.correct_forecast(
-                    df_forecast_stats, simulated_data=df_retro_daily, observed_data=df_observed
-                )
+                if self.bias_correction == "Local":
+                    df_forecast_stats_corrected = geoglows.bias.correct_forecast(
+                        df_forecast_stats, simulated_data=df_retro_daily, observed_data=df_observed
+                    )
+                elif self.bias_correction == "Global":
+                    df_forecast_stats_corrected = geoglows.bias.discharge_transform(
+                        df_forecast_stats, self.river_id
+                    )
+                elif self.bias_correction == "None":
+                    df_forecast_stats_corrected = df_forecast_stats
                 plot = plot_forecast_stats_bias_corrected(
                     df_forecast_stats, df_forecast_stats_corrected, rp_df=df_rp, rp_df_bias_corrected=df_rp_corrected
                 )
@@ -127,9 +143,14 @@ class Plots(base.DataSource):
                 plot = geoglows.plots.forecast_ensembles(df, rp_df=df_rp)
             case "forecast-ensembles-bias-corrected":
                 df_forecast_ensembles = get_plot_data(self.river_id, "forecast-ensembles")
-                df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
-                    df_forecast_ensembles, simulated_data=df_retro_daily, observed_data=df_observed
-                )
+                if self.bias_correction == "Local":
+                    df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
+                        df_forecast_ensembles, simulated_data=df_retro_daily, observed_data=df_observed
+                    )
+                elif self.bias_correction == "Global":
+                    df_forecast_ensembles_corrected = geoglows.bias.discharge_transform(
+                        df_forecast_ensembles, self.river_id
+                    )
                 plot = plot_forecast_ensembles_bias_corrected(
                     df=df_forecast_ensembles,
                     df_bias_corrected=df_forecast_ensembles_corrected,

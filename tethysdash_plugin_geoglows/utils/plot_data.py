@@ -5,7 +5,8 @@ import numpy as np
 import scipy.stats as stats
 import geoglows
 import getpass
-import pwd
+import pwd  
+from .bias_plots import gumbel1
 
 username = os.environ.get("NGINX_USER", getpass.getuser())
 uid = pwd.getpwnam(username).pw_uid

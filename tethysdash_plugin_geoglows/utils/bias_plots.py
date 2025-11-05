@@ -607,7 +607,7 @@ def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected,
     
     fig.add_trace(go.Scatter(
         x=df_retro_daily_corrected.index,
-        y=df_retro_daily_corrected[river_id],
+        y=df_retro_daily_corrected["Corrected Simulated Streamflow"],
         mode='lines',
         name='Daily Average Bias Corrected'
     ))
@@ -659,16 +659,17 @@ def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected,
 
 def plot_bias_corrected(df_og, df_corrected, sim_name, bias_name, river_id):
     fig = go.Figure()
+    print(df_og)
     fig.add_trace(go.Scatter(
         x=df_og.index,
         y=df_og[river_id],
         mode='lines',
         name=sim_name
     ))
-    
+    print(df_corrected)
     fig.add_trace(go.Scatter(
         x=df_corrected.index,
-        y=df_corrected[river_id],
+        y=df_corrected["Corrected Simulated Streamflow"],
         mode='lines',
         name=bias_name
     ))

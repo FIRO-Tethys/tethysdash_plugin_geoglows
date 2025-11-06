@@ -1,6 +1,7 @@
 from datetime import datetime
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from .plot_data import get_plot_data, get_SSI_data, get_SSI_monthly_data
 
 
@@ -204,31 +205,43 @@ def plot_retro_fdc(df_retro_daily, river_id):
 
     return fig
 
-
-def plot_flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str:
+def plot_flood_probabilities(
+    ensem: pd.DataFrame,
+    rperiods: pd.DataFrame,
+    ensem_corrected: pd.DataFrame = None,
+    rperiods_corrected: pd.DataFrame = None
+) -> go.Figure:
     """
-    Processes the results of forecast_ensembles and return_periods and shows the probabilities of exceeding the
-    return period flow on each day.
+    Processes the results of forecast_ensembles and return_periods and shows
+    the probabilities of exceeding the return period flow on each day.
+    Optionally processes a second ensemble (bias-corrected) dataset.
 
     Args:
-        ensem: the csv response from forecast_ensembles
-        rperiods: the csv response from return_periods
+        ensem: Forecast ensemble DataFrame.
+        rperiods: Return periods DataFrame.
+        ensem_corrected: Optional bias-corrected forecast ensemble.
+        rperiods_corrected: Optional bias-corrected return periods.
 
-    Return:
-         string containing html to build a table with a row of dates and for exceeding each return period threshold
+    Returns:
+        go.Figure: Plotly figure containing one or two tables.
     """
-    ens = ensem.drop(columns=['ensemble_52']).dropna()
-    ens = ens.groupby(ens.index.date).max()
-    ens.index = pd.to_datetime(ens.index).strftime('%Y-%m-%d')
-    # for each return period, get the percentage of columns with a value greater than the return period on each day
-    rperiods = rperiods.T
-    percent_series = {rp: (ens > rperiods[rp].values[0]).mean(axis=1).values.tolist() for rp in rperiods}
-    percent_series = pd.DataFrame(percent_series, index=ens.index)
-    percent_series.index.name = 'Date'
-    percent_series.columns = [f'{c} Year' for c in percent_series.columns]
-    percent_series = percent_series * 100
-    percent_series = percent_series.round(1)
-    percent_series = percent_series.reset_index()
+    def compute_probability_table(ensem_df, rperiods_df):
+        """Inner function to compute exceedance probability table."""
+        ens = ensem_df.drop(columns=['ensemble_52'], errors='ignore').dropna()
+        ens = ens.groupby(ens.index.date).max()
+        ens.index = pd.to_datetime(ens.index).strftime('%Y-%m-%d')
+
+        rperiods_df = rperiods_df.T
+        percent_series = {
+            rp: (ens > rperiods_df[rp].values[0]).mean(axis=1).values.tolist()
+            for rp in rperiods_df
+        }
+        percent_series = pd.DataFrame(percent_series, index=ens.index)
+        percent_series.index.name = 'Date'
+        percent_series.columns = [f'{c} Year' for c in percent_series.columns]
+        percent_series = percent_series * 100
+        percent_series = percent_series.round(1).reset_index()
+        return percent_series
 
     colors = {
         'Date': 'rgba(0, 0, 0, 0)',
@@ -241,38 +254,56 @@ def plot_flood_probabilities(ensem: pd.DataFrame, rperiods: pd.DataFrame) -> str
         '100 Year': 'rgba(128, 0, 246, {0})',
     }
 
-    headers = [x for x in percent_series.columns]
+    def make_table(percent_series, title):
+        """Create a Plotly Table figure for one dataset."""
+        df = percent_series.copy()
 
-    rows = []
-    for _idx, row in enumerate(percent_series.values.tolist()):
-        cells = []
-        for col_idx, cell in enumerate(row):
-            if col_idx == 0:
-                cells.append(cell)
-                continue
-            cells.append(cell)
-        rows.append(cells)
-    df = pd.DataFrame(data=rows, columns=headers)
+        fill_color = []
+        for col in df.columns:
+            col_colors = []
+            for val in df[col]:
+                color = colors[col] if col == 'Date' else colors[col].format(round(val * 0.005, 2))
+                col_colors.append(color)
+            fill_color.append(col_colors)
 
-    fill_color = []
-    for col in df.columns:
-        col_colors = []
-        for val in df[col]:
-            color = colors[col] if col == 'Date' else colors[col].format(round(val * 0.005, 2))
-            col_colors.append(color)
-        fill_color.append(col_colors)
+        return go.Table(
+            header=dict(values=list(df.columns), fill_color='rgba(0, 0, 0, 0)'),
+            cells=dict(values=[df[col] for col in df.columns], fill_color=fill_color),
+            domain=dict(x=[0, 1], y=[0, 1])
+        )
 
-    fig = go.Figure(data=[go.Table(
-        header=dict(
-            values=list(df.columns),
-            fill_color='rgba(0, 0, 0, 0)'
-        ),
-        cells=dict(
-            values=[df[col] for col in df.columns],
-            fill_color=fill_color
-        ))
-    ])
+    # --- Main execution ---
+    tables = []
+
+    # Original
+    df_main = compute_probability_table(ensem, rperiods)
+    tables.append(("Forecast Exceedance Probabilities", make_table(df_main, "Forecast Exceedance Probabilities")))
+
+    # Optional corrected
+    if ensem_corrected is not None and rperiods_corrected is not None:
+        df_corrected = compute_probability_table(ensem_corrected, rperiods_corrected)
+        tables.append(("Bias-Corrected Exceedance Probabilities", make_table(df_corrected, "Bias-Corrected Exceedance Probabilities")))
+
+    # --- Combine into one figure ---
+    if len(tables) == 1:
+        fig = go.Figure(data=[tables[0][1]])
+        fig.update_layout(title_text=tables[0][0])
+        return fig
+
+    # Two tables → must define table specs
+    fig = make_subplots(
+        rows=2, cols=1,
+        specs=[[{"type": "table"}],
+               [{"type": "table"}]],
+        subplot_titles=[t[0] for t in tables]
+    )
+
+    for i, (_, table) in enumerate(tables, start=1):
+        fig.add_trace(table, row=i, col=1)
+
+    fig.update_layout(height=1200)
     return fig
+
 
 
 def plot_ssi_each_month_since_year(reach_id, since_year):

@@ -50,7 +50,6 @@ class Plots(base.DataSource):
             {"value": "retro-status", "label": "Annual Status by Month"},  # need Year
             {"value": "retro-fdc", "label": "Flow Duration"},
             {"value": "exceedance", "label": "Exceedance"},
-            {"value": "exceedance-bias-corrected", "label": "Exceedance (Bias Corrected)"},
             {"value": "ssi-monthly", "label": "SSI Monthly"},
             {"value": "ssi-one-month", "label": "SSI One Month"},  # need Month
         ],
@@ -176,12 +175,29 @@ class Plots(base.DataSource):
             case "bias-performance":
                 plot = geoglows.plots.corrected_scatterplots(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-daily":
+                df_doy_mean = (
+                    df_retro_daily
+                    .groupby([df_retro_daily.index.month, df_retro_daily.index.day])
+                    .mean()
+                )
+                df_doy_mean.index = pd.to_datetime(
+                    [f"2000-{m:02d}-{d:02d}" for m, d in df_doy_mean.index],
+                    format="%Y-%m-%d"
+                )
                 if self.bias_correction == "None":
-                    plot = geoglows.plots.daily_averages(df_retro_daily)
+                    plot = geoglows.plots.daily_averages(df_doy_mean)
                 elif self.bias_correction == "Local":
                     plot = geoglows.plots.corrected_day_average(df_retro_daily_corrected, df_retro_daily, df_observed)
                 elif self.bias_correction == "Global":
-                    plot = plot_bias_corrected(df_retro_daily, df_retro_daily_corrected, "Daily Simulated Streamflow", "Corrected Daily Simulated Streamflow", self.river_id)
+                    df_doy_corrected = (
+                        df_retro_daily_corrected
+                        .groupby([df_retro_daily_corrected.index.month, df_retro_daily_corrected.index.day])
+                        .mean())
+                    df_doy_corrected.index = pd.to_datetime(
+                        [f"2000-{m:02d}-{d:02d}" for m, d in df_doy_corrected.index],
+                        format="%Y-%m-%d"
+                    )
+                    plot = plot_bias_corrected(df_doy_mean, df_doy_corrected, "Daily Simulated Streamflow", "Corrected Daily Simulated Streamflow", self.river_id)
             case "retro-monthly":
                 df_retro_monthly = get_plot_data(self.river_id, self.plot_name)
                 df_retro_monthly['month'] = df_retro_monthly.index.strftime('%m')
@@ -233,18 +249,18 @@ class Plots(base.DataSource):
             case "exceedance":
                 df_ensemble = get_plot_data(self.river_id, "forecast-ensembles")
                 df_rp = get_plot_data(self.river_id, "return-periods")
-                plot = plot_flood_probabilities(df_ensemble, df_rp)
-            case "exceedance-bias-corrected":
-                df_forecast_ensembles = get_plot_data(self.river_id, "forecast-ensembles")
-                if self.bias_correction == "Local":
-                    df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
-                        df_forecast_ensembles, simulated_data=df_retro_daily, observed_data=df_observed
-                    )
-                elif self.bias_correction == "Global":
-                    df_forecast_ensembles_corrected = geoglows.bias.discharge_transform(
-                        df_forecast_ensembles, self.river_id
-                    )
-                plot = plot_flood_probabilities(df_forecast_ensembles_corrected, df_rp_corrected)
+                if self.bias_correction == "None":
+                    plot = plot_flood_probabilities(df_ensemble, df_rp)
+                else:
+                    if self.bias_correction == "Local":
+                        df_forecast_ensembles_corrected = geoglows.bias.correct_forecast(
+                            df_ensemble, simulated_data=df_retro_daily, observed_data=df_observed
+                        )
+                    elif self.bias_correction == "Global":
+                        df_forecast_ensembles_corrected = geoglows.bias.discharge_transform(
+                            df_ensemble, self.river_id
+                        )
+                    plot = plot_flood_probabilities(df_ensemble, df_rp, df_forecast_ensembles_corrected, df_rp_corrected)
             case "ssi-monthly":
                 if self.bias_correction == "None":
                     plot = plot_ssi_each_month_since_year(

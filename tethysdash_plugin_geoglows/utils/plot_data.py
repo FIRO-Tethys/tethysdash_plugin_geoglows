@@ -6,7 +6,7 @@ import scipy.stats as stats
 import geoglows
 import getpass
 import pwd  
-from .bias_plots import gumbel1
+import math
 
 username = os.environ.get("NGINX_USER", getpass.getuser())
 uid = pwd.getpwnam(username).pw_uid
@@ -18,6 +18,18 @@ if not os.path.exists(PLOTS_CACHE_PATH):
     os.makedirs(PLOTS_CACHE_PATH)
     os.chown(PLOTS_CACHE_PATH, uid, gid)
 
+def gumbel1(rp: int, xbar: float, std: float) -> float:
+    """
+    Solves the Gumbel Type 1 distribution
+    Args:
+        rp: return period (years)
+        xbar: average of the dataset
+        std: standard deviation of the dataset
+
+    Returns:
+        float: solution to gumbel distribution
+    """
+    return round(-math.log(-math.log(1 - (1 / rp))) * std * .7797 + xbar - (.45 * std), 2)
 
 def get_plot_data(river_id, plot_name='forecast'):
     """Get newest data for the selected plot.

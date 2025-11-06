@@ -1,24 +1,9 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objs as go
-import math
-import datetime
+from datetime import datetime
 import pytz
-
-
-def gumbel1(rp: int, xbar: float, std: float) -> float:
-    """
-    Solves the Gumbel Type 1 distribution
-    Args:
-        rp: return period (years)
-        xbar: average of the dataset
-        std: standard deviation of the dataset
-
-    Returns:
-        float: solution to gumbel distribution
-    """
-    return round(-math.log(-math.log(1 - (1 / rp))) * std * .7797 + xbar - (.45 * std), 2)
-
+from .plot_data import get_SSI_data, get_SSI_monthly_data, gumbel1
 
 def compute_return_periods(df_corrected: pd.DataFrame, river_id: str, rps=None) -> pd.DataFrame:
     """
@@ -217,7 +202,7 @@ def plot_forecast_bias_correct(
 def timezone_label(timezone: str = None):
     timezone = str(timezone) if timezone is not None else 'UTC'
     # get the number of hours the timezone is offset from UTC
-    now = datetime.datetime.now(pytz.timezone(timezone))
+    now = datetime.now(pytz.timezone(timezone))
     utc_offset = now.utcoffset().total_seconds() / 3600
     # convert float number of hours to HH:MM format
     utc_offset = f'{int(utc_offset):+03d}:{int((utc_offset % 1) * 60):02d}'
@@ -659,14 +644,13 @@ def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected,
 
 def plot_bias_corrected(df_og, df_corrected, sim_name, bias_name, river_id):
     fig = go.Figure()
-    print(df_og)
     fig.add_trace(go.Scatter(
         x=df_og.index,
         y=df_og[river_id],
         mode='lines',
         name=sim_name
     ))
-    print(df_corrected)
+
     fig.add_trace(go.Scatter(
         x=df_corrected.index,
         y=df_corrected["Corrected Simulated Streamflow"],
@@ -695,6 +679,7 @@ def plot_bias_corrected(df_og, df_corrected, sim_name, bias_name, river_id):
 def plot_yearly_volumes_corrected(df_retro_yearly_og, df_retro_yearly_corrected, river_id):
     seconds_per_year = 60 * 60 * 24 * 365.25
     df_retro_yearly_og['year'] = df_retro_yearly_og.index.strftime('%Y').astype('int')
+    
     df_retro_yearly_og['volume'] = df_retro_yearly_og[river_id] * seconds_per_year / 1e6
     df_retro_yearly_og['5year_start'] = df_retro_yearly_og['year'] // 5 * 5
     df_5_year_avgs_og = df_retro_yearly_og.groupby('5year_start').mean().drop(['year', river_id], axis=1).reset_index()
@@ -757,6 +742,156 @@ def plot_yearly_volumes_corrected(df_retro_yearly_og, df_retro_yearly_corrected,
             title='Million Cubic Meters (m³ * 10^6)',
             range=[0, None]
         )
+    )
+
+    return fig
+
+def plot_retro_fdc_sim_vs_corrected(df_simulated, df_corrected, river_id):
+    percentiles = [i * 2 for i in range(51)]
+    percentiles_reversed = percentiles[::-1]
+
+    def sorted_array_to_percentiles(array):
+        return [array[len(array) * p // 100 - (1 if p == 100 else 0)] for p in percentiles_reversed]
+
+    months = [f'{i}'.rjust(2, '0') for i in range(1, 13)]
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    def compute_fdc(df):
+        df = df.copy()
+        df['month'] = df.index.strftime('%m')
+        fdc = sorted_array_to_percentiles(df.sort_values(by=river_id)[river_id].to_list())
+        monthly_fdc = {}
+        for month in months:
+            tmp = df[df['month'] == month].sort_values(by=river_id, ascending=True)
+            values = tmp[river_id].to_list()
+            monthly_fdc[month] = sorted_array_to_percentiles(values)
+        return fdc, monthly_fdc
+
+    fdc_sim, monthly_fdc_sim = compute_fdc(df_simulated)
+    fdc_corr, monthly_fdc_corr = compute_fdc(df_corrected)
+
+    fig = go.Figure()
+
+    # Overall FDCs
+    fig.add_trace(go.Scatter(
+        x=percentiles,
+        y=fdc_sim,
+        mode='lines',
+        name='Simulated - FDC',
+        line=dict(color='blue'),
+        visible='legendonly'  # hidden by default
+    ))
+    fig.add_trace(go.Scatter(
+        x=percentiles,
+        y=fdc_corr,
+        mode='lines',
+        name='Bias-Corrected - FDC',
+        line=dict(color='red')
+    ))
+
+    # Monthly FDCs
+    for i, month in enumerate(months):
+        month_name = month_names[i]
+        fig.add_trace(go.Scatter(
+            x=percentiles,
+            y=monthly_fdc_sim[month],
+            mode='lines',
+            name=f'Simulated - {month_name}',
+            line=dict(color='blue', dash='dot'),
+            visible='legendonly'  # hidden by default
+        ))
+        fig.add_trace(go.Scatter(
+            x=percentiles,
+            y=monthly_fdc_corr[month],
+            mode='lines',
+            name=f'Bias-Corrected - {month_name}',
+            line=dict(color='red', dash='dot')
+        ))
+
+    fig.update_layout(
+        title=f'Flow Duration Curves for River: {river_id}',
+        xaxis=dict(title='Percentile (100%)'),
+        yaxis=dict(title='Flow (m³/s)', range=[0, None]),
+        legend=dict(orientation='h', x=0, y=1.05),
+        hovermode='x'
+    )
+
+    return fig
+
+def plot_ssi_each_month_since_year_bias(df_retro, df_corrected, since_year):
+    current_year = datetime.now().year
+    assert 1941 <= since_year <= 2024 <= current_year, f'the year should be in range [1941, {current_year}]'
+    df_ssi = get_SSI_data(df_retro)
+    df_ssi_corrected = get_SSI_data(df_corrected)
+    df_ssi_sorted = df_ssi.sort_index()[str(since_year):]
+    df_ssi_corrected_sorted = df_ssi_corrected.sort_index()[str(since_year):]
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_ssi_sorted.index,
+        y=df_ssi_sorted['SSI'],
+        mode='lines+markers',
+        name='Original SSI',
+        marker=dict(symbol='circle', color='blue', size=5),
+        line=dict(color='blue')
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_ssi_corrected_sorted.index,
+        y=df_ssi_corrected_sorted['SSI'],
+        mode='lines+markers',
+        name='Bias-Corrected SSI',
+        marker=dict(symbol='square', color='red', size=5),
+        line=dict(color='red')
+    ))
+
+    fig.update_layout(
+        xaxis_title='Date',
+        yaxis_title='SSI',
+        title="SSI Monthly Values Over Time",
+        legend=dict(x=0.02, y=0.98)
+    )
+
+    return fig
+def plot_ssi_one_month_each_year_bias_corrected(df_retro, df_corrected, month):
+    month = int(month)
+    assert 1 <= month <= 12, f'the month number is in valid: {month}'
+
+    df_ssi_month = get_SSI_monthly_data(df_retro, month)
+
+    df_ssi_corrected = get_SSI_monthly_data(df_corrected, month)
+
+    number_to_month = {
+        1: "January", 2: "February", 3: "March", 4: "April",
+        5: "May", 6: "June", 7: "July", 8: "August",
+        9: "September", 10: "October", 11: "November", 12: "December"
+    }
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_ssi_month.index,
+        y=df_ssi_month['SSI'],
+        mode='lines+markers',
+        name='Original SSI',
+        marker=dict(symbol='circle', color='blue', size=5),
+        line=dict(color='blue')
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_ssi_corrected.index,
+        y=df_ssi_corrected['SSI'],
+        mode='lines+markers',
+        name='Bias-Corrected SSI',
+        marker=dict(symbol='square', color='red', size=5),
+        line=dict(color='red')
+    ))
+
+    fig.update_layout(
+        title=f"SSI Monthly Values for {number_to_month[month]} Over Time",
+        xaxis_title='Date',
+        yaxis_title='SSI',
+        legend=dict(x=0.02, y=0.98)
     )
 
     return fig

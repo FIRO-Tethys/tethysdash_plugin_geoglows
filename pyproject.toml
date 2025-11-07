@@ -35,4 +35,4 @@ zip-safe = false
 include = ["*"]
 
 [tool.setuptools.package-data]
-"tethysdash_plugin_geoglows" = ["static/*.png", "*.json"]
+"tethysdash_plugin_geoglows" = ["static/*.png", "data/*.json"]

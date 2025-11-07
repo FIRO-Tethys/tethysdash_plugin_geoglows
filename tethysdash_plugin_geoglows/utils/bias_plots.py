@@ -121,6 +121,18 @@ def plot_forecast_bias_correct(
     """
     Plots simulated and bias-corrected forecasted streamflow with optional return periods.
     Median + uncertainty shading toggle together; return periods remain independent.
+    
+    Parameters
+    ----------
+    df_sim : pd.DataFrame - the simulated forecast data
+    df_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
+    rp_df_sim : pd.DataFrame, optional - return periods for simulated data, the original return periods
+    rp_df_corrected : pd.DataFrame, optional - return periods for bias-corrected data, the new calculated return periods
+    plot_titles : list, optional - additional titles to add to the plot title
+    
+    Returns
+    -------
+    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast
     """
 
     scatter_traces = []
@@ -224,6 +236,18 @@ def plot_forecast_ensembles_bias_corrected(
         - Bias-Corrected Ensemble
         - Simulated Return Periods (toggleable)
         - Bias-Corrected Return Periods (toggleable)
+    
+    Parameters
+    ----------
+    df : pd.DataFrame - the simulated forecast ensemble data
+    df_bias_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
+    rp_df : pd.DataFrame, optional - return periods for simulated data, the original return periods
+    rp_df_bias_corrected : pd.DataFrame, optional - return periods for bias-corrected data, the new calculated return periods
+    plot_titles : list, optional - additional titles to add to the plot title
+    
+    Returns
+    -------
+    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast ensemble plotted
     """
 
     scatter_plots = []
@@ -325,6 +349,19 @@ def plot_forecast_stats_bias_corrected(
         - Bias-Corrected
         - Simulated Return Periods
         - Bias-Corrected Return Periods
+    Parameters
+    ----------
+    df : pd.DataFrame - the simulated forecast stats data
+    df_bias_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
+    rp_df : pd.DataFrame, optional - return periods for simulated data, the original return periods
+    rp_df_bias_corrected : pd.DataFrame, optional - return periods for bias-corrected data, the new calculated return periods
+    plot_titles : list, optional - additional titles to add to the plot title
+    show_maxmin : bool, optional - whether to show the max/min envelope (default is False)
+    
+    Returns
+    -------
+    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast stats plotted
+    
     """
     scatter_plots = []
     max_flows = []
@@ -677,6 +714,18 @@ def plot_bias_corrected(df_og, df_corrected, sim_name, bias_name, river_id):
 
 
 def plot_yearly_volumes_corrected(df_retro_yearly_og, df_retro_yearly_corrected, river_id):
+    """
+    Returns a plotly figure object comparing yearly cumulative discharge volumes
+    between original and bias-corrected retrospective simulations.
+
+    Args:
+        df_retro_yearly_og (df): the original yearly data from RFS
+        df_retro_yearly_corrected (df): the bias-corrected version of the above dataframe
+        river_id (str): the RFS river id for labeling the plot
+
+    Returns:
+        go.Figure: plotly figure object with yearly cumulative discharge volumes
+    """
     seconds_per_year = 60 * 60 * 24 * 365.25
     df_retro_yearly_og['year'] = df_retro_yearly_og.index.strftime('%Y').astype('int')
     
@@ -747,6 +796,16 @@ def plot_yearly_volumes_corrected(df_retro_yearly_og, df_retro_yearly_corrected,
     return fig
 
 def plot_retro_fdc_sim_vs_corrected(df_simulated, df_corrected, river_id):
+    """
+    Returns a plotly figure object comparing Flow Duration Curves (FDCs)
+    between simulated and bias-corrected retrospective simulations.
+    Args:
+        df_simulated (df): the simulated data from RFS
+        df_corrected (df): the bias-corrected version of the above dataframe
+        river_id (str): the RFS river id for labeling the plot
+    Returns:
+        go.Figure: plotly figure object with FDCs
+    """
     percentiles = [i * 2 for i in range(51)]
     percentiles_reversed = percentiles[::-1]
 
@@ -814,84 +873,6 @@ def plot_retro_fdc_sim_vs_corrected(df_simulated, df_corrected, river_id):
         yaxis=dict(title='Flow (m³/s)', range=[0, None]),
         legend=dict(orientation='h', x=0, y=1.05),
         hovermode='x'
-    )
-
-    return fig
-
-def plot_ssi_each_month_since_year_bias(df_retro, df_corrected, since_year):
-    current_year = datetime.now().year
-    assert 1941 <= since_year <= 2024 <= current_year, f'the year should be in range [1941, {current_year}]'
-    df_ssi = get_SSI_data(df_retro)
-    df_ssi_corrected = get_SSI_data(df_corrected)
-    df_ssi_sorted = df_ssi.sort_index()[str(since_year):]
-    df_ssi_corrected_sorted = df_ssi_corrected.sort_index()[str(since_year):]
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=df_ssi_sorted.index,
-        y=df_ssi_sorted['SSI'],
-        mode='lines+markers',
-        name='Original SSI',
-        marker=dict(symbol='circle', color='blue', size=5),
-        line=dict(color='blue')
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=df_ssi_corrected_sorted.index,
-        y=df_ssi_corrected_sorted['SSI'],
-        mode='lines+markers',
-        name='Bias-Corrected SSI',
-        marker=dict(symbol='square', color='red', size=5),
-        line=dict(color='red')
-    ))
-
-    fig.update_layout(
-        xaxis_title='Date',
-        yaxis_title='SSI',
-        title="SSI Monthly Values Over Time",
-        legend=dict(x=0.02, y=0.98)
-    )
-
-    return fig
-def plot_ssi_one_month_each_year_bias_corrected(df_retro, df_corrected, month):
-    month = int(month)
-    assert 1 <= month <= 12, f'the month number is in valid: {month}'
-
-    df_ssi_month = get_SSI_monthly_data(df_retro, month)
-
-    df_ssi_corrected = get_SSI_monthly_data(df_corrected, month)
-
-    number_to_month = {
-        1: "January", 2: "February", 3: "March", 4: "April",
-        5: "May", 6: "June", 7: "July", 8: "August",
-        9: "September", 10: "October", 11: "November", 12: "December"
-    }
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=df_ssi_month.index,
-        y=df_ssi_month['SSI'],
-        mode='lines+markers',
-        name='Original SSI',
-        marker=dict(symbol='circle', color='blue', size=5),
-        line=dict(color='blue')
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=df_ssi_corrected.index,
-        y=df_ssi_corrected['SSI'],
-        mode='lines+markers',
-        name='Bias-Corrected SSI',
-        marker=dict(symbol='square', color='red', size=5),
-        line=dict(color='red')
-    ))
-
-    fig.update_layout(
-        title=f"SSI Monthly Values for {number_to_month[month]} Over Time",
-        xaxis_title='Date',
-        yaxis_title='SSI',
-        legend=dict(x=0.02, y=0.98)
     )
 
     return fig

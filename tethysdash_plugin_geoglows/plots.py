@@ -11,8 +11,7 @@ from .utils.bias_plots import (
     plot_forecast_bias_correct, compute_return_periods,
     plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected,
     plot_annual_averages_bias_corrected, plot_yearly_volumes_corrected, plot_retro_simulation_corrected,
-    plot_bias_corrected, plot_retro_fdc_sim_vs_corrected,  plot_ssi_each_month_since_year_bias,
-    plot_ssi_one_month_each_year_bias_corrected
+    plot_bias_corrected, plot_retro_fdc_sim_vs_corrected
     
 )
 from datetime import datetime
@@ -264,18 +263,18 @@ class Plots(base.DataSource):
             case "ssi-monthly":
                 if self.bias_correction == "None":
                     plot = plot_ssi_each_month_since_year(
-                        self.river_id, 2010
+                        2010, df_retro_daily
                     )  # TODO year is hardcoded?
                 elif self.bias_correction == "Local" or self.bias_correction == "Global":
-                    plot = plot_ssi_each_month_since_year_bias(
-                        df_retro_daily, df_retro_daily_corrected, 2010
+                    plot = plot_ssi_each_month_since_year(
+                        2010, df_retro_daily, df_retro_daily_corrected
                     )  # TODO year is hardcoded?
             case "ssi-one-month":
                 if self.bias_correction == "None":
-                    plot = plot_ssi_one_month_each_year(self.river_id, self.month)
+                    plot = plot_ssi_one_month_each_year(self.month, df_retro_daily)
                 elif self.bias_correction == "Local" or self.bias_correction == "Global":
-                    plot = plot_ssi_one_month_each_year_bias_corrected(
-                        df_retro_daily, df_retro_daily_corrected, self.month
+                    plot = plot_ssi_one_month_each_year(
+                        self.month, df_retro_daily, df_retro_daily_corrected
                     )
         return json.loads(plot.to_json())
     

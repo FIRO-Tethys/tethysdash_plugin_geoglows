@@ -305,46 +305,128 @@ def plot_flood_probabilities(
     return fig
 
 
+def plot_ssi_each_month_since_year(since_year=None, df_retro=None, df_corrected=None):
+    """
+    Plots SSI monthly values over time since a given year.
 
-def plot_ssi_each_month_since_year(reach_id, since_year):
+    Works with either:
+      - A reach_id (fetches retro data internally), OR
+      - Pre-loaded DataFrames (df_retro, and optionally df_corrected).
+
+    Args:
+        reach_id (str, optional): ID of reach, used if df_retro is not provided.
+        since_year (int): Year from which to start plotting (inclusive).
+        df_retro (pd.DataFrame, optional): Retro-simulation DataFrame.
+        df_corrected (pd.DataFrame, optional): Bias-corrected DataFrame.
+
+    Returns:
+        plotly.graph_objects.Figure
+    """
+    if since_year is None:
+        raise ValueError("since_year must be provided")
+
     current_year = datetime.now().year
-    assert 1941 <= since_year <= 2024 <= current_year, f'the year should be in range [1941, {current_year}]'
+    assert 1941 <= since_year <= current_year, f'The year should be in range [1941, {current_year}]'
 
-    df_retro = get_plot_data(reach_id, 'retro-simulation')
+    # Process SSI for retro data
     df_ssi = get_SSI_data(df_retro)
     df_ssi_sorted = df_ssi.sort_index()[str(since_year):]
-    fig = go.Figure(go.Scatter(
+
+    fig = go.Figure()
+
+    # Add retro trace
+    fig.add_trace(go.Scatter(
         x=df_ssi_sorted.index,
         y=df_ssi_sorted['SSI'],
         mode='lines+markers',
-        marker=dict(symbol='circle', color='blue', size=5)
+        name='Original SSI',
+        marker=dict(symbol='circle', color='blue', size=5),
+        line=dict(color='blue')
     ))
-    fig.update_layout(xaxis_title='Date', yaxis_title='SSI', title="SSI Monthly Values Over Time")
+
+    # Add corrected trace if provided
+    if df_corrected is not None:
+        df_ssi_corrected = get_SSI_data(df_corrected)
+        df_ssi_corrected_sorted = df_ssi_corrected.sort_index()[str(since_year):]
+        fig.add_trace(go.Scatter(
+            x=df_ssi_corrected_sorted.index,
+            y=df_ssi_corrected_sorted['SSI'],
+            mode='lines+markers',
+            name='Bias-Corrected SSI',
+            marker=dict(symbol='square', color='red', size=5),
+            line=dict(color='red')
+        ))
+
+    fig.update_layout(
+        title=f"SSI Monthly Values Since {since_year}",
+        xaxis_title='Date',
+        yaxis_title='SSI',
+        legend=dict(x=0.02, y=0.98)
+    )
+
     return fig
 
 
-def plot_ssi_one_month_each_year(reach_id, month):
+def plot_ssi_one_month_each_year(month=None, df_retro=None, df_corrected=None):
+    """
+    Plots SSI for a given month across years.
+    
+    Can handle either:
+      - Only df_retro (or reach_id for retro simulation), OR
+      - Both df_retro and df_corrected for bias-corrected comparison.
+    
+    Args:
+        reach_id (str, optional): Required if df_retro is not provided. Used to fetch retro data.
+        month (int): Month number (1-12) to plot.
+        df_retro (pd.DataFrame, optional): Pre-loaded retro simulation data.
+        df_corrected (pd.DataFrame, optional): Pre-loaded bias-corrected data.
+    
+    Returns:
+        plotly.graph_objects.Figure
+    """
+    if month is None:
+        raise ValueError("Month must be provided")
     month = int(month)
-    assert 1 <= month <= 12, f'the month number is in valid: {month}'
+    assert 1 <= month <= 12, f'The month number is invalid: {month}'
 
-    df_retro = get_plot_data(reach_id, 'retro-simulation')
+    
     df_ssi_month = get_SSI_monthly_data(df_retro, month)
-
+    
     number_to_month = {
         1: "January", 2: "February", 3: "March", 4: "April",
         5: "May", 6: "June", 7: "July", 8: "August",
         9: "September", 10: "October", 11: "November", 12: "December"
     }
-
-    fig = go.Figure(go.Scatter(
+    
+    fig = go.Figure()
+    
+    # Add retro trace
+    fig.add_trace(go.Scatter(
         x=df_ssi_month.index,
         y=df_ssi_month['SSI'],
         mode='lines+markers',
-        marker=dict(symbol='circle', color='blue', size=5)
+        name='Original SSI',
+        marker=dict(symbol='circle', color='blue', size=5),
+        line=dict(color='blue')
     ))
+    
+    # Add corrected trace if provided
+    if df_corrected is not None:
+        df_ssi_corrected = get_SSI_monthly_data(df_corrected, month)
+        fig.add_trace(go.Scatter(
+            x=df_ssi_corrected.index,
+            y=df_ssi_corrected['SSI'],
+            mode='lines+markers',
+            name='Bias-Corrected SSI',
+            marker=dict(symbol='square', color='red', size=5),
+            line=dict(color='red')
+        ))
+    
     fig.update_layout(
         title=f"SSI Monthly Values for {number_to_month[month]} Over Time",
         xaxis_title='Date',
-        yaxis_title='SSI'
+        yaxis_title='SSI',
+        legend=dict(x=0.02, y=0.98)
     )
+    
     return fig

@@ -11,7 +11,7 @@ from .utils.bias_plots import (
     plot_forecast_bias_correct, compute_return_periods,
     plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected,
     plot_annual_averages_bias_corrected, plot_yearly_volumes_corrected, plot_retro_simulation_corrected,
-    plot_bias_corrected, plot_retro_fdc_sim_vs_corrected
+    plot_bias_corrected
     
 )
 from datetime import datetime
@@ -230,9 +230,8 @@ class Plots(base.DataSource):
                 elif self.bias_correction == "Local" or self.bias_correction == "Global":
                     bias_corrected_yearly = df_retro_daily_corrected.resample('Y').mean()
                     bias_corrected_yearly = bias_corrected_yearly.rename(columns={"Corrected Simulated Streamflow": self.river_id})
-                    plot = plot_yearly_volumes_corrected(
-                        df_retro_yearly_og=df_retro_yearly, df_retro_yearly_corrected=bias_corrected_yearly,
-                        river_id=self.river_id
+                    plot = plot_yearly_volumes(
+                        df_retro_yearly=df_retro_yearly, river_id=self.river_id, df_retro_yearly_corrected=bias_corrected_yearly
                     )
             case "retro-status":
                 df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
@@ -242,8 +241,8 @@ class Plots(base.DataSource):
                     plot = plot_retro_fdc(df_retro_daily, self.river_id)
                 elif self.bias_correction == "Local" or self.bias_correction == "Global":
                     df_retro_daily_corrected = df_retro_daily_corrected.rename(columns={"Corrected Simulated Streamflow": self.river_id})
-                    plot = plot_retro_fdc_sim_vs_corrected(
-                        df_simulated=df_retro_daily, df_corrected=df_retro_daily_corrected, river_id=self.river_id
+                    plot = plot_retro_fdc(
+                        df_simulated=df_retro_daily, river_id=self.river_id, df_corrected=df_retro_daily_corrected
                     )
             case "exceedance":
                 df_ensemble = get_plot_data(self.river_id, "forecast-ensembles")

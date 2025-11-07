@@ -51,24 +51,55 @@ def plot_retro_simulation(df_retro_daily, df_retro_monthly, river_id):
     return fig
 
 
-def plot_yearly_volumes(df_retro_yearly, river_id):
+def plot_yearly_volumes(df_retro_yearly, river_id, df_retro_yearly_corrected=None):
+    """
+    Plots yearly cumulative discharge volumes for a river.
+    
+    If df_retro_yearly_corrected is provided, compares original vs bias-corrected volumes.
+    Otherwise, plots only the original yearly data.
+
+    Args:
+        df_retro_yearly (pd.DataFrame): Original yearly data
+        river_id (str): Column name for river discharge
+        df_retro_yearly_corrected (pd.DataFrame, optional): Bias-corrected yearly data
+        
+    Returns:
+        go.Figure: Plotly figure
+    """
     seconds_per_year = 60 * 60 * 24 * 365.25
-    df_retro_yearly['year'] = df_retro_yearly.index.strftime('%Y').astype('int')
-    df_retro_yearly['volume'] = df_retro_yearly[river_id] * seconds_per_year / 1e6
-    df_retro_yearly['5year_start'] = df_retro_yearly['year'] // 5 * 5
-    df_5_year_avgs = df_retro_yearly.groupby('5year_start').mean().drop(['year', river_id], axis=1).reset_index()
+
+    def prepare_df(df, label_prefix):
+        df = df.copy()
+        df['year'] = df.index.strftime('%Y').astype('int')
+        df['volume'] = df[river_id] * seconds_per_year / 1e6
+        df['5year_start'] = df['year'] // 5 * 5
+        df_5yr = df.groupby('5year_start').mean().drop(['year', river_id], axis=1).reset_index()
+        df['label_prefix'] = label_prefix
+        df_5yr['label_prefix'] = label_prefix
+        return df, df_5yr
+
+    # Prepare original data
+    df_yearly, df_5yr = prepare_df(df_retro_yearly, "Simulation")
+
+    # Prepare corrected data if provided
+    if df_retro_yearly_corrected is not None and not df_retro_yearly_corrected.empty:
+        df_yearly_corr, df_5yr_corr = prepare_df(df_retro_yearly_corrected, "Corrected")
+    else:
+        df_yearly_corr, df_5yr_corr = None, None
 
     fig = go.Figure()
 
+    # Annual volumes - original
     fig.add_trace(go.Scatter(
-        x=df_retro_yearly['year'],
-        y=df_retro_yearly['volume'],
+        x=df_yearly['year'],
+        y=df_yearly['volume'],
         mode='lines',
-        name='Annual Volume',
+        name='Annual Volume Simulation',
         marker=dict(color='rgb(0, 166, 255)')
     ))
 
-    for idx, row in df_5_year_avgs.iterrows():
+    # 5-year averages - original
+    for idx, row in df_5yr.iterrows():
         year = row['5year_start']
         val = row['volume']
         fig.add_trace(go.Scatter(
@@ -76,10 +107,34 @@ def plot_yearly_volumes(df_retro_yearly, river_id):
             y=[val, val],
             mode='lines',
             legendgroup='5 Year Average',
-            showlegend=idx == 0,  # TODO waht does this do?
-            name='5 Year Average',
+            showlegend=idx == 0,
+            name='5 Year Average Simulation',
             marker=dict(color='red')
         ))
+
+    # Annual volumes - corrected
+    if df_yearly_corr is not None:
+        fig.add_trace(go.Scatter(
+            x=df_yearly_corr['year'],
+            y=df_yearly_corr['volume'],
+            mode='lines',
+            name='Annual Volume Corrected',
+            marker=dict(color='rgb(0, 166, 255)')
+        ))
+
+        # 5-year averages - corrected
+        for idx, row in df_5yr_corr.iterrows():
+            year = row['5year_start']
+            val = row['volume']
+            fig.add_trace(go.Scatter(
+                x=[year, year + 5],
+                y=[val, val],
+                mode='lines',
+                legendgroup='5 Year Average',
+                showlegend=idx == 0,
+                name='5 Year Average Corrected',
+                marker=dict(color='red')
+            ))
 
     fig.update_layout(
         title=f'Yearly Cumulative Discharge Volume for River: {river_id}',
@@ -159,51 +214,101 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, year):
     return go.Figure(scatter_plots, layout)
 
 
-def plot_retro_fdc(df_retro_daily, river_id):
+def plot_retro_fdc(df_simulated, river_id, df_corrected=None):
+    """
+    Returns a plotly figure object showing Flow Duration Curves (FDCs).
+    
+    If df_corrected is provided, compares simulated vs bias-corrected data.
+    Otherwise, plots only the provided df_simulated data.
+
+    Args:
+        df_simulated (pd.DataFrame): simulated or retro daily data.
+        river_id (str): the river column name to plot.
+        df_corrected (pd.DataFrame, optional): bias-corrected data for comparison.
+        
+    Returns:
+        go.Figure: plotly figure object with FDCs
+    """
     percentiles = [i * 2 for i in range(51)]
     percentiles_reversed = percentiles[::-1]
+    visible = 'legendonly' if (df_corrected is not None and not df_corrected.empty) else True
 
+    
     def sorted_array_to_percentiles(array):
         return [array[len(array) * p // 100 - (1 if p == 100 else 0)] for p in percentiles_reversed]
 
     months = [f'{i}'.rjust(2, '0') for i in range(1, 13)]
     month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    df_retro_daily['month'] = df_retro_daily.index.strftime('%m')
 
-    fdc = sorted_array_to_percentiles(df_retro_daily.sort_values(by=river_id)[river_id].to_list())
-    monthly_fdc = {}
-    for month in months:
-        tmp = df_retro_daily[df_retro_daily['month'] == month].sort_values(by=river_id, ascending=True)
-        values = tmp[river_id].to_list()
-        monthly_fdc[month] = sorted_array_to_percentiles(values)
+    def compute_fdc(df):
+        df = df.copy()
+        df['month'] = df.index.strftime('%m')
+        fdc = sorted_array_to_percentiles(df.sort_values(by=river_id)[river_id].to_list())
+        monthly_fdc = {}
+        for month in months:
+            tmp = df[df['month'] == month].sort_values(by=river_id, ascending=True)
+            values = tmp[river_id].to_list()
+            monthly_fdc[month] = sorted_array_to_percentiles(values)
+        return fdc, monthly_fdc
+
+    # Compute FDCs for simulated data
+    fdc_sim, monthly_fdc_sim = compute_fdc(df_simulated)
+
+    # Compute FDCs for corrected data if provided
+    if df_corrected is not None and not df_corrected.empty:
+        fdc_corr, monthly_fdc_corr = compute_fdc(df_corrected)
 
     fig = go.Figure()
 
+    # Overall FDCs
     fig.add_trace(go.Scatter(
         x=percentiles,
-        y=fdc,
+        y=fdc_sim,
         mode='lines',
-        name='Flow Duration Curve'
+        name='Simulated - FDC',
+        line=dict(color='blue'),
+        visible=visible
     ))
 
-    for i in range(12):
-        month, month_name = months[i], month_names[i]
+    if df_corrected is not None and not df_corrected.empty:
         fig.add_trace(go.Scatter(
             x=percentiles,
-            y=monthly_fdc[month],
+            y=fdc_corr,
             mode='lines',
-            name=f'FDC {month_name}'
+            name='Bias-Corrected - FDC',
+            line=dict(color='red')
         ))
+
+    # Monthly FDCs
+    for i, month in enumerate(months):
+        month_name = month_names[i]
+        fig.add_trace(go.Scatter(
+            x=percentiles,
+            y=monthly_fdc_sim[month],
+            mode='lines',
+            name=f'Simulated - {month_name}',
+            line=dict(color='blue', dash='dot'),
+            visible=visible
+        ))
+        if df_corrected is not None and not df_corrected.empty:
+            fig.add_trace(go.Scatter(
+                x=percentiles,
+                y=monthly_fdc_corr[month],
+                mode='lines',
+                name=f'Bias-Corrected - {month_name}',
+                line=dict(color='red', dash='dot')
+            ))
 
     fig.update_layout(
         title=f'Flow Duration Curves for River: {river_id}',
         xaxis=dict(title='Percentile (100%)'),
         yaxis=dict(title='Flow (m³/s)', range=[0, None]),
-        legend=dict(orientation='h'),
+        legend=dict(orientation='h', x=0, y=1.05),
         hovermode='x'
     )
 
     return fig
+
 
 def plot_flood_probabilities(
     ensem: pd.DataFrame,

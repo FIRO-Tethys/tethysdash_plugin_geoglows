@@ -12,7 +12,6 @@ from .utils.bias_plots import (
     plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected,
     plot_annual_averages_bias_corrected, plot_retro_simulation_corrected,
     plot_bias_corrected
-    
 )
 from datetime import datetime
 import json
@@ -39,17 +38,22 @@ class Plots(base.DataSource):
         "river_id": "text",
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
+            {"value": "forecast-bias-corrected", "label": "Forecast (Bias Corrected)"},
             {"value": "forecast-stats", "label": "Forecast Statistics"},
             {"value": "forecast-ensembles", "label": "Forecast Ensemble"},
             {"value": "retro-simulation", "label": "Retrospective Simulation"},
             {"value": "bias-performance", "label": "Bias Correction Performance"},
             {"value": "retro-daily", "label": "Retrospective Daily Averages"},
+            {"value": "retro-daily-bias-corrected", "label": "Retrospective Daily Averages (Bias Corrected)"},
             {"value": "retro-monthly", "label": "Retrospective Monthly Averages"},
+            {"value": "retro-monthly-bias-corrected", "label": "Retrospective Monthly Averages (Bias Corrected)"},
             {"value": "retro-yearly", "label": "Retrospective Yearly Averages"},
+            {"value": "retro-yearly-bias-corrected", "label": "Retrospective Yearly Averages (Bias Corrected)"},
             {"value": "retro-yearly-volume", "label": "Yearly Cumulative Discharge Volume"},
             {"value": "retro-status", "label": "Annual Status by Month"},  # need Year
             {"value": "retro-fdc", "label": "Flow Duration"},
             {"value": "exceedance", "label": "Exceedance"},
+            {"value": "exceedance-bias-corrected", "label": "Exceedance (Bias Corrected)"},
             {"value": "ssi-monthly", "label": "SSI Monthly"},
             {"value": "ssi-one-month", "label": "SSI One Month"},  # need Month
         ],

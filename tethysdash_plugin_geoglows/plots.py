@@ -10,12 +10,13 @@ from .utils.simu_plots import (
 from .utils.bias_plots import (
     plot_forecast_bias_correct, compute_return_periods,
     plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected,
-    plot_annual_averages_bias_corrected, plot_yearly_volumes_corrected, plot_retro_simulation_corrected,
+    plot_annual_averages_bias_corrected, plot_retro_simulation_corrected,
     plot_bias_corrected
     
 )
 from datetime import datetime
 import json
+from tethysapp.tethysdash.exceptions import VisualizationError
 
 
 class Plots(base.DataSource):
@@ -39,7 +40,7 @@ class Plots(base.DataSource):
         "plot_name": [
             {"value": "forecast", "label": "Forecast"},
             {"value": "forecast-stats", "label": "Forecast Statistics"},
-            {"value": "forecast-ensembles", "label": "Forecast Ensembles"},
+            {"value": "forecast-ensembles", "label": "Forecast Ensemble"},
             {"value": "retro-simulation", "label": "Retrospective Simulation"},
             {"value": "bias-performance", "label": "Bias Correction Performance"},
             {"value": "retro-daily", "label": "Retrospective Daily Averages"},
@@ -81,8 +82,8 @@ class Plots(base.DataSource):
             if self.bias_correction == "Local":
                 try:
                     dict_bias = json.loads(self.observed_historical_data)
-                except json.JSONDecodeError as e:
-                    raise ValueError("Uploaded observed historical data is not valid JSON:", e[:100], "...")
+                except Exception as e:
+                    raise VisualizationError("Uploaded observed historical data is not valid JSON:")
                 df_observed = pd.DataFrame(dict_bias).replace("", np.nan)\
                     .assign(Datetime=lambda x: x['Datetime'].astype('datetime64[ns]')).set_index('Datetime')
                 df_observed["Streamflow (m3/s)"] = df_observed["Streamflow (m3/s)"].astype(float)

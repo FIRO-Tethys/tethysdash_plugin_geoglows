@@ -2,7 +2,8 @@ from datetime import datetime
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from .plot_data import get_plot_data, get_SSI_data, get_SSI_monthly_data
+import numpy as np
+from .plot_data import get_plot_data, get_SSI_data
 
 
 def plot_retro_simulation(df_retro_daily, df_retro_monthly, river_id):
@@ -150,68 +151,113 @@ def plot_yearly_volumes(df_retro_yearly, river_id, df_retro_yearly_corrected=Non
     return fig
 
 
-def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, year):
+def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, bias_corrected=False):
+    """
+    Corrected: Very Wet = highest flows, Very Dry = lowest flows.
+    Stacked polygons like JS plotStatuses.
+    """
+    # Keep the original label order
     status_labels = ["Very Wet", "Wet", "Normal", "Dry", "Very Dry"]
-    status_percentiles = [0, 13, 28, 72, 87]
-    status_colors = ['rgb(44, 125, 205)', 'rgb(142, 206, 238)',
-                     'rgb(231,226,188)', 'rgb(255, 168, 133)', 'rgb(205, 35, 63)']
+    status_percentiles = [0, 13, 28, 72, 87]  # original percentiles
+    status_colors = [
+        "rgb(44, 125, 205)",   # Very Wet
+        "rgb(142, 206, 238)",  # Wet
+        "rgb(231, 226, 188)",  # Normal
+        "rgb(255, 168, 133)",  # Dry
+        "rgb(205, 35, 63)"     # Very Dry
+    ]
 
-    months = [f'{i}'.rjust(2, '0') for i in range(1, 13)]
-    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    months = [f"{i:02d}" for i in range(1, 13)]
+    month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
-    df_retro_daily['month'] = df_retro_daily.index.strftime('%m')
+    # --- Compute monthly status values (descending sort) ---
+    df_daily = df_retro_daily.copy()
+    df_daily["month"] = df_daily.index.strftime("%m")
 
-    monthly_status_values = {}
-    for label in status_labels:
-        monthly_status_values[label] = []
+    monthly_status_values = {label: [] for label in status_labels}
 
     for month in months:
-        tmp = df_retro_daily[df_retro_daily['month'] == month].sort_values(by=river_id, ascending=False)
+        tmp = df_daily[df_daily["month"] == month].sort_values(by=river_id, ascending=False)
         values = tmp[river_id].to_list()
+        n = len(values)
+        for idx, perc in enumerate(status_percentiles):
+            index = int(n * perc / 100)
+            monthly_status_values[status_labels[idx]].append(values[index])
 
-        for idx, percentile in enumerate(status_percentiles):
-            index = int(len(values) * percentile / 100)
-            monthly_status_values[status_labels[idx]].append(values[index])  # calculate values based on the percentile
+    # --- Build stacked polygons (from bottom to top) ---
+    traces = []
+    # Start with Very Dry at bottom
+    prev_values = [0]*12
+    # Reverse the labels for stacking: Very Dry at bottom → Very Wet at top
+    for label in reversed(status_labels):
+        curr_values = monthly_status_values[label]
+        traces.append(
+            go.Scatter(
+                x=month_names + month_names[::-1],
+                y=curr_values + prev_values[::-1],
+                mode="lines",
+                fill="toself",
+                name=label,
+                line=dict(width=0),
+                fillcolor=status_colors[status_labels.index(label)],
+                visible="legendonly",
+                legendgrouptitle=dict(text="Monthly Status Categories")
+            )
+        )
+        prev_values = curr_values
 
-    df_monthly_status = pd.DataFrame.from_dict(monthly_status_values)
+    # --- Long-term monthly average line ---
+    df_monthly = df_retro_monthly.copy()
+    df_monthly["year"] = df_monthly.index.year
+    df_monthly["month"] = df_monthly.index.month
+    monthly_avg = df_monthly.groupby("month")[river_id].mean().reindex(range(1,13)).values
 
-    scatter_plots = []
-    for i, label in enumerate(df_monthly_status.columns):
-        scatter_plots.append(go.Scatter(
+    traces.append(
+        go.Scatter(
             x=month_names,
-            y=df_monthly_status[label],
+            y=monthly_avg,
             mode="lines",
-            fill="tozeroy",
-            name=label,
-            line=dict(width=0),
-            fillcolor=status_colors[i]
-        ))
-
-    layout = go.Layout(
-        title=f"Annual Status by Month for River: {river_id}",
-        xaxis=dict(
-            title="Month",
-            tickvals=months,
-            ticktext=month_names
-        ),
-        hovermode="x",
-        yaxis=dict(
-            title="Flow (m³/s)",
-            range=[0, None]
+            name="Long-term Monthly Average",
+            line=dict(color="rgb(0,157,255)", width=3, dash="dash"),
+            visible=True
         )
     )
 
-    df_retro_monthly['year'] = df_retro_monthly.index.strftime('%Y')
-    df_retro_monthly_year = df_retro_monthly[df_retro_monthly['year'] == str(year)]
-    scatter_plots.append(go.Scatter(
-        x=month_names,
-        y=df_retro_monthly_year[river_id],
-        name=f'year {year}',
-        mode='lines',
-        line=dict(width=2, color='black')
-    ))
+    # --- Each year's monthly averages ---
+    years = sorted(df_monthly["year"].unique())
+    for idx, year in enumerate(reversed(years)):
+        yearly = df_monthly[df_monthly["year"]==year].set_index("month").reindex(range(1,13))[river_id].values
+        traces.append(
+            go.Scatter(
+                x=month_names,
+                y=yearly,
+                name=f"Year {year}",
+                mode="lines",
+                line=dict(width=2, color="black"),
+                visible=True if idx==0 else "legendonly"
+            )
+        )
 
-    return go.Figure(scatter_plots, layout)
+    # --- Layout ---
+    layout = go.Layout(
+        title=dict(text=f"Monthly Status for River: {river_id}", x=0.5),
+        xaxis=dict(title="Month", tickvals=month_names, ticktext=month_names),
+        yaxis=dict(title="Flow (m³/s)", range=[0,None]),
+        hovermode="x",
+        annotations=[dict(
+            text="Experimental Bias-Corrected Plot",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=30, color="rgba(150,150,150,0.2)"),
+            textangle=-30
+        )] if bias_corrected else []
+    )
+
+    fig = go.Figure(data=traces, layout=layout)
+    fig.update_layout(template="plotly_white")
+    return fig
+
 
 
 def plot_retro_fdc(df_simulated, river_id, df_corrected=None):
@@ -472,30 +518,14 @@ def plot_ssi_each_month_since_year(since_year=None, df_retro=None, df_corrected=
     return fig
 
 
-def plot_ssi_one_month_each_year(month=None, df_retro=None, df_corrected=None):
+def plot_ssi_all_months(df_retro=None, df_corrected=None):
     """
-    Plots SSI for a given month across years.
-    
-    Can handle either:
-      - Only df_retro (or reach_id for retro simulation), OR
-      - Both df_retro and df_corrected for bias-corrected comparison.
-    
-    Args:
-        reach_id (str, optional): Required if df_retro is not provided. Used to fetch retro data.
-        month (int): Month number (1-12) to plot.
-        df_retro (pd.DataFrame, optional): Pre-loaded retro simulation data.
-        df_corrected (pd.DataFrame, optional): Pre-loaded bias-corrected data.
-    
-    Returns:
-        plotly.graph_objects.Figure
+    Plots SSI for all months across years.
+    Default visible trace = yearly average SSI (one value per year).
+    Month-specific traces are toggleable via legend (x-axis = year).
     """
-    if month is None:
-        raise ValueError("Month must be provided")
-    month = int(month)
-    assert 1 <= month <= 12, f'The month number is invalid: {month}'
-
-    
-    df_ssi_month = get_SSI_monthly_data(df_retro, month)
+    if df_retro is None:
+        raise ValueError("df_retro must be provided")
     
     number_to_month = {
         1: "January", 2: "February", 3: "March", 4: "April",
@@ -505,33 +535,68 @@ def plot_ssi_one_month_each_year(month=None, df_retro=None, df_corrected=None):
     
     fig = go.Figure()
     
-    # Add retro trace
+    # --- Get all monthly SSI data ---
+    df_ssi_all = get_SSI_data(df_retro)
+    df_ssi_all['year'] = df_ssi_all.index.year
+    df_ssi_all['month'] = df_ssi_all.index.month
+    
+    # --- Compute yearly average SSI (default visible line) ---
+    yearly_avg = df_ssi_all.groupby('year')['SSI'].mean()
     fig.add_trace(go.Scatter(
-        x=df_ssi_month.index,
-        y=df_ssi_month['SSI'],
+        x=yearly_avg.index,
+        y=yearly_avg.values,
         mode='lines+markers',
-        name='Original SSI',
-        marker=dict(symbol='circle', color='blue', size=5),
-        line=dict(color='blue')
+        name='Yearly Average SSI',
+        line=dict(color='black', width=3, dash='dash'),
+        marker=dict(symbol='circle', size=6),
+        visible=True
     ))
     
-    # Add corrected trace if provided
-    if df_corrected is not None:
-        df_ssi_corrected = get_SSI_monthly_data(df_corrected, month)
+    # --- Add retro month-specific traces (one value per year per month) ---
+    for month in range(1, 13):
+        df_month = df_ssi_all[df_ssi_all['month'] == month]
+        # Take monthly average per year
+        month_per_year = df_month.groupby('year')['SSI'].mean()
         fig.add_trace(go.Scatter(
-            x=df_ssi_corrected.index,
-            y=df_ssi_corrected['SSI'],
+            x=month_per_year.index,
+            y=month_per_year.values,
             mode='lines+markers',
-            name='Bias-Corrected SSI',
-            marker=dict(symbol='square', color='red', size=5),
-            line=dict(color='red')
+            name=f'Original SSI - {number_to_month[month]}',
+            marker=dict(symbol='circle', size=5),
+            line=dict(color='blue'),
+            visible='legendonly'
         ))
     
+    # --- Add corrected month-specific traces if provided ---
+    if df_corrected is not None:
+        df_ssi_corr_all = get_SSI_data(df_corrected)
+        df_ssi_corr_all['year'] = df_ssi_corr_all.index.year
+        df_ssi_corr_all['month'] = df_ssi_corr_all.index.month
+        for month in range(1, 13):
+            df_month_corr = df_ssi_corr_all[df_ssi_corr_all['month'] == month]
+            month_per_year_corr = df_month_corr.groupby('year')['SSI'].mean()
+            fig.add_trace(go.Scatter(
+                x=month_per_year_corr.index,
+                y=month_per_year_corr.values,
+                mode='lines+markers',
+                name=f'Bias-Corrected SSI - {number_to_month[month]}',
+                marker=dict(symbol='square', size=5),
+                line=dict(color='red'),
+                visible='legendonly'
+            ))
+    
     fig.update_layout(
-        title=f"SSI Monthly Values for {number_to_month[month]} Over Time",
-        xaxis_title='Date',
+        title="SSI Values Across Years",
+        xaxis_title='Year',
         yaxis_title='SSI',
-        legend=dict(x=0.02, y=0.98)
+        legend=dict(
+            x=1.02,
+            y=1,
+            traceorder='normal',
+            bgcolor='rgba(255,255,255,0)',
+            bordercolor='rgba(0,0,0,0)'
+        ),
+        hovermode='x unified'
     )
     
     return fig

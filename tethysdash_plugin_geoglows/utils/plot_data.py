@@ -142,27 +142,6 @@ def get_SSI_data(df_retro):
     return df_result
 
 
-def get_SSI_monthly_data(df, month):
-    monthly_average = df.resample('M').mean()
-    filtered_df = monthly_average[monthly_average.index.month == month].copy()
-    mean = filtered_df.iloc[:, 0].mean()
-    std_dev = filtered_df.iloc[:, 0].std()
-    filtered_df['cumulative_probability'] = filtered_df.iloc[:, 0].apply(lambda x: 1-stats.norm.cdf(x, mean, std_dev))
-    filtered_df['probability_less_than_0.5'] = filtered_df['cumulative_probability'] < 0.5
-    filtered_df['p'] = filtered_df['cumulative_probability']
-    filtered_df.loc[filtered_df['cumulative_probability'] > 0.5, 'p'] = 1 - filtered_df['cumulative_probability']
-    filtered_df['W'] = (-2 * np.log(filtered_df['p'])) ** 0.5
-    C0 = 2.515517
-    C1 = 0.802853
-    C2 = 0.010328
-    d1 = 1.432788
-    d2 = 0.001308
-    d3 = 0.001308
-    filtered_df['SSI'] = filtered_df['W'] - (C0 + C1 * filtered_df['W'] + C2 * filtered_df['W'] ** 2) / \
-        (1 + d1 * filtered_df['W'] + d2 * filtered_df['W'] ** 2 + d3 * filtered_df['W'] ** 3)
-    filtered_df.loc[~filtered_df['probability_less_than_0.5'], 'SSI'] *= -1
-    return filtered_df
-
 def get_bias_corrected_plot_data(river_id, plot_name='forecast'):
     """Get newest data for the selected plot.
 

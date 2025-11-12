@@ -7,13 +7,14 @@ import geoglows
 import getpass
 import pwd
 import math
+from tethysapp.tethysdash.app import App
 
 username = os.environ.get("NGINX_USER", getpass.getuser())
 uid = pwd.getpwnam(username).pw_uid
 gid = pwd.getpwnam(username).pw_gid
 
-module_path = os.path.dirname(__file__)
-PLOTS_CACHE_PATH = os.path.join(module_path, "geoglows_plots_cache")
+workspace_path = App.get_app_workspace()
+PLOTS_CACHE_PATH = os.path.join(workspace_path.path, "geoglows_plots_cache")
 if not os.path.exists(PLOTS_CACHE_PATH):
     os.makedirs(PLOTS_CACHE_PATH)
     os.chown(PLOTS_CACHE_PATH, uid, gid)

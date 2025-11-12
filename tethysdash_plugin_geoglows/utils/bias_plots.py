@@ -5,6 +5,7 @@ from datetime import datetime
 import pytz
 from .plot_data import gumbel1
 
+
 def compute_return_periods(df_corrected: pd.DataFrame, river_id: str, rps=None) -> pd.DataFrame:
     """
     Compute return period flows from a bias-corrected daily streamflow dataframe.
@@ -121,7 +122,7 @@ def plot_forecast_bias_correct(
     """
     Plots simulated and bias-corrected forecasted streamflow with optional return periods.
     Median + uncertainty shading toggle together; return periods remain independent and start hidden.
-    
+
     Parameters
     ----------
     df_sim : pd.DataFrame - the simulated forecast data
@@ -129,7 +130,7 @@ def plot_forecast_bias_correct(
     rp_df_sim : pd.DataFrame, optional - return periods for simulated data
     rp_df_corrected : pd.DataFrame, optional - return periods for bias-corrected data
     plot_titles : list, optional - additional titles to add to the plot title
-    
+
     Returns
     -------
     go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast
@@ -175,9 +176,8 @@ def plot_forecast_bias_correct(
             showlegend=False,
             legendgroup='Bias-Corrected_line',  # toggled with median
         ),
-    ]
+        ]
 
-   # --- Add return periods ---
     if rp_df_sim is not None:
         traces_sim = _rperiod_scatters(
             df_sim.index[0], df_sim.index[-1],
@@ -222,7 +222,6 @@ def plot_forecast_bias_correct(
         ),
         margin=dict(l=60, r=20, t=60, b=80)
     )
-    
 
     return go.Figure(data=scatter_traces, layout=layout)
 
@@ -252,18 +251,18 @@ def plot_forecast_ensembles_bias_corrected(
         - Bias-Corrected Ensemble
         - Simulated Return Periods (toggleable)
         - Bias-Corrected Return Periods (toggleable)
-    
+
     Parameters
     ----------
     df : pd.DataFrame - the simulated forecast ensemble data
     df_bias_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
     rp_df : pd.DataFrame, optional - return periods for simulated data, the original return periods
-    rp_df_bias_corrected : pd.DataFrame, optional - return periods for bias-corrected data, the new calculated return periods
+    rp_df_bias_corrected : pd.DataFrame, optional - the new calculated return periods for bias corrected data
     plot_titles : list, optional - additional titles to add to the plot title
-    
+
     Returns
     -------
-    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast ensemble plotted
+    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast ensemble
     """
 
     scatter_plots = []
@@ -370,13 +369,13 @@ def plot_forecast_stats_bias_corrected(
     df : pd.DataFrame - the simulated forecast stats data
     df_bias_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
     rp_df : pd.DataFrame, optional - return periods for simulated data, the original return periods
-    rp_df_bias_corrected : pd.DataFrame, optional - return periods for bias-corrected data, the new calculated return periods
+    rp_df_bias_corrected : pd.DataFrame, optional -  the new calculated return periods for bias corrected data
     plot_titles : list, optional - additional titles to add to the plot title
     show_maxmin : bool, optional - whether to show the max/min envelope (default is False)
-    
+
     Returns
     -------
-    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast stats plotted
+    go.Figure - the plotly figure object with a plot of the bias corrected and the simulated forecast stats
     """
 
     scatter_plots = []
@@ -510,7 +509,6 @@ def plot_forecast_stats_bias_corrected(
     return go.Figure(scatter_plots, layout=layout)
 
 
-
 def plot_annual_averages_bias_corrected(
     df_simulated: pd.DataFrame,  # daily geoglows data
     df_bias_corrected: pd.DataFrame,  # bias corrected data
@@ -613,7 +611,13 @@ def plot_annual_averages_bias_corrected(
 
     return go.Figure(scatter_plots, layout=layout)
 
-def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected, df_retro_monthly_og, df_retro_monthly_corrected, river_id):
+
+def plot_retro_simulation_corrected(
+    df_retro_daily_og, df_retro_daily_corrected,
+    df_retro_monthly_og, df_retro_monthly_corrected,
+    river_id,
+):
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=df_retro_daily_og.index,
@@ -621,7 +625,7 @@ def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected,
         mode='lines',
         name='Daily Average Simulation'
     ))
-    
+
     fig.add_trace(go.Scatter(
         x=df_retro_daily_corrected.index,
         y=df_retro_daily_corrected["Corrected Simulated Streamflow"],
@@ -637,7 +641,7 @@ def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected,
         line=dict(color='rgb(0, 166, 255)'),
         visible='legendonly'
     ))
-    
+
     fig.add_trace(go.Scatter(
         x=df_retro_monthly_corrected.index,
         y=df_retro_monthly_corrected[river_id],
@@ -673,6 +677,7 @@ def plot_retro_simulation_corrected(df_retro_daily_og, df_retro_daily_corrected,
     )
 
     return fig
+
 
 def plot_bias_corrected(df_og, df_corrected, sim_name, bias_name, river_id):
     fig = go.Figure()

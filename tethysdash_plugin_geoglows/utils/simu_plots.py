@@ -2,8 +2,7 @@ from datetime import datetime
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import numpy as np
-from .plot_data import get_plot_data, get_SSI_data
+from .plot_data import get_SSI_data
 
 
 def plot_retro_simulation(df_retro_daily, df_retro_monthly, river_id):
@@ -55,7 +54,7 @@ def plot_retro_simulation(df_retro_daily, df_retro_monthly, river_id):
 def plot_yearly_volumes(df_retro_yearly, river_id, df_retro_yearly_corrected=None):
     """
     Plots yearly cumulative discharge volumes for a river.
-    
+
     If df_retro_yearly_corrected is provided, compares original vs bias-corrected volumes.
     Otherwise, plots only the original yearly data.
 
@@ -63,7 +62,7 @@ def plot_yearly_volumes(df_retro_yearly, river_id, df_retro_yearly_corrected=Non
         df_retro_yearly (pd.DataFrame): Original yearly data
         river_id (str): Column name for river discharge
         df_retro_yearly_corrected (pd.DataFrame, optional): Bias-corrected yearly data
-        
+
     Returns:
         go.Figure: Plotly figure
     """
@@ -168,7 +167,7 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, bias_co
     ]
 
     months = [f"{i:02d}" for i in range(1, 13)]
-    month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     # --- Compute monthly status values (descending sort) ---
     df_daily = df_retro_daily.copy()
@@ -210,7 +209,7 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, bias_co
     df_monthly = df_retro_monthly.copy()
     df_monthly["year"] = df_monthly.index.year
     df_monthly["month"] = df_monthly.index.month
-    monthly_avg = df_monthly.groupby("month")[river_id].mean().reindex(range(1,13)).values
+    monthly_avg = df_monthly.groupby("month")[river_id].mean().reindex(range(1, 13)).values
 
     traces.append(
         go.Scatter(
@@ -226,7 +225,7 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, bias_co
     # --- Each year's monthly averages ---
     years = sorted(df_monthly["year"].unique())
     for idx, year in enumerate(reversed(years)):
-        yearly = df_monthly[df_monthly["year"]==year].set_index("month").reindex(range(1,13))[river_id].values
+        yearly = df_monthly[df_monthly["year"] == year].set_index("month").reindex(range(1, 13))[river_id].values
         traces.append(
             go.Scatter(
                 x=month_names,
@@ -234,7 +233,7 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, bias_co
                 name=f"Year {year}",
                 mode="lines",
                 line=dict(width=2, color="black"),
-                visible=True if idx==0 else "legendonly"
+                visible=True if idx == 0 else "legendonly"
             )
         )
 
@@ -242,7 +241,7 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, bias_co
     layout = go.Layout(
         title=dict(text=f"Monthly Status for River: {river_id}", x=0.5),
         xaxis=dict(title="Month", tickvals=month_names, ticktext=month_names),
-        yaxis=dict(title="Flow (m³/s)", range=[0,None]),
+        yaxis=dict(title="Flow (m³/s)", range=[0, None]),
         hovermode="x",
         annotations=[dict(
             text="Experimental Bias-Corrected Plot",
@@ -259,11 +258,10 @@ def plot_retro_annual_status(df_retro_daily, df_retro_monthly, river_id, bias_co
     return fig
 
 
-
 def plot_retro_fdc(df_simulated, river_id, df_corrected=None):
     """
     Returns a plotly figure object showing Flow Duration Curves (FDCs).
-    
+
     If df_corrected is provided, compares simulated vs bias-corrected data.
     Otherwise, plots only the provided df_simulated data.
 
@@ -271,7 +269,7 @@ def plot_retro_fdc(df_simulated, river_id, df_corrected=None):
         df_simulated (pd.DataFrame): simulated or retro daily data.
         river_id (str): the river column name to plot.
         df_corrected (pd.DataFrame, optional): bias-corrected data for comparison.
-        
+
     Returns:
         go.Figure: plotly figure object with FDCs
     """
@@ -279,7 +277,6 @@ def plot_retro_fdc(df_simulated, river_id, df_corrected=None):
     percentiles_reversed = percentiles[::-1]
     visible = 'legendonly' if (df_corrected is not None and not df_corrected.empty) else True
 
-    
     def sorted_array_to_percentiles(array):
         return [array[len(array) * p // 100 - (1 if p == 100 else 0)] for p in percentiles_reversed]
 
@@ -433,7 +430,10 @@ def plot_flood_probabilities(
     # Optional corrected
     if ensem_corrected is not None and rperiods_corrected is not None:
         df_corrected = compute_probability_table(ensem_corrected, rperiods_corrected)
-        tables.append(("Bias-Corrected Exceedance Probabilities", make_table(df_corrected, "Bias-Corrected Exceedance Probabilities")))
+        tables.append(
+            ("Bias-Corrected Exceedance Probabilities",
+             make_table(df_corrected, "Bias-Corrected Exceedance Probabilities"))
+            )
 
     # --- Combine into one figure ---
     if len(tables) == 1:
@@ -526,20 +526,20 @@ def plot_ssi_all_months(df_retro=None, df_corrected=None):
     """
     if df_retro is None:
         raise ValueError("df_retro must be provided")
-    
+
     number_to_month = {
         1: "January", 2: "February", 3: "March", 4: "April",
         5: "May", 6: "June", 7: "July", 8: "August",
         9: "September", 10: "October", 11: "November", 12: "December"
     }
-    
+
     fig = go.Figure()
-    
+
     # --- Get all monthly SSI data ---
     df_ssi_all = get_SSI_data(df_retro)
     df_ssi_all['year'] = df_ssi_all.index.year
     df_ssi_all['month'] = df_ssi_all.index.month
-    
+
     # --- Compute yearly average SSI (default visible line) ---
     yearly_avg = df_ssi_all.groupby('year')['SSI'].mean()
     fig.add_trace(go.Scatter(
@@ -551,7 +551,7 @@ def plot_ssi_all_months(df_retro=None, df_corrected=None):
         marker=dict(symbol='circle', size=6),
         visible=True
     ))
-    
+
     # --- Add retro month-specific traces (one value per year per month) ---
     for month in range(1, 13):
         df_month = df_ssi_all[df_ssi_all['month'] == month]
@@ -566,7 +566,7 @@ def plot_ssi_all_months(df_retro=None, df_corrected=None):
             line=dict(color='blue'),
             visible='legendonly'
         ))
-    
+
     # --- Add corrected month-specific traces if provided ---
     if df_corrected is not None:
         df_ssi_corr_all = get_SSI_data(df_corrected)
@@ -584,7 +584,7 @@ def plot_ssi_all_months(df_retro=None, df_corrected=None):
                 line=dict(color='red'),
                 visible='legendonly'
             ))
-    
+
     fig.update_layout(
         title="SSI Values Across Years",
         xaxis_title='Year',
@@ -598,5 +598,5 @@ def plot_ssi_all_months(df_retro=None, df_corrected=None):
         ),
         hovermode='x unified'
     )
-    
+
     return fig

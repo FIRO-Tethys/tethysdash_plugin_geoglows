@@ -13,7 +13,6 @@ from .utils.bias_plots import (
     plot_annual_averages_bias_corrected, plot_retro_simulation_corrected,
     plot_bias_corrected
 )
-from datetime import datetime
 import json
 from tethysapp.tethysdash.exceptions import VisualizationError
 
@@ -61,7 +60,7 @@ class Plots(base.DataSource):
     visualization_attribution = 'pygeoglows'
     _user_parameters = []
 
-    def __init__(self, river_id, plot_name, observed_historical_data=None, bias_correction = "None", metadata=None):
+    def __init__(self, river_id, plot_name, observed_historical_data=None, bias_correction="None", metadata=None):
         self.river_id = int(river_id)
         self.plot_name = plot_name
         self.observed_historical_data = observed_historical_data
@@ -77,8 +76,10 @@ class Plots(base.DataSource):
             if self.bias_correction == "Local":
                 try:
                     dict_bias = json.loads(self.observed_historical_data)
-                except Exception as e:
-                    raise VisualizationError("Please upload a valid CSV file for observed historical  or change bias correction option.")
+                except Exception:
+                    raise VisualizationError(
+                        "Please upload a valid CSV file for observed historical  or change bias correction option."
+                        )
                 df_observed = pd.DataFrame(dict_bias).replace("", np.nan)\
                     .assign(Datetime=lambda x: x['Datetime'].astype('datetime64[ns]')).set_index('Datetime')
                 df_observed["Streamflow (m3/s)"] = df_observed["Streamflow (m3/s)"].astype(float)
@@ -132,7 +133,10 @@ class Plots(base.DataSource):
                             columns={self.river_id: "Corrected Simulated Streamflow"}, inplace=True
                         )
                     plot = plot_forecast_stats_bias_corrected(
-                        df_forecast_stats, df_forecast_stats_corrected, rp_df=df_rp, rp_df_bias_corrected=df_rp_corrected
+                        df_forecast_stats,
+                        df_forecast_stats_corrected,
+                        rp_df=df_rp,
+                        rp_df_bias_corrected=df_rp_corrected
                     )
             case "forecast-ensembles":
                 df_forecast_ensemble = get_plot_data(self.river_id, self.plot_name)
@@ -163,12 +167,12 @@ class Plots(base.DataSource):
                 elif self.bias_correction == "Local":
                     plot = geoglows.plots.corrected_retrospective(
                         df_retro_daily_corrected, df_retro_daily, df_observed, df_rp
-                )
+                    )
                 elif self.bias_correction == "Global":
                     df_retro_monthly_corrected = get_bias_corrected_plot_data(self.river_id, "retro-monthly")
                     plot = plot_retro_simulation_corrected(
                         df_retro_daily, df_retro_daily_corrected, df_retro_monthly,
-                        df_retro_monthly_corrected, self.river_id) #TODO
+                        df_retro_monthly_corrected, self.river_id)
             case "bias-performance":
                 plot = geoglows.plots.corrected_scatterplots(df_retro_daily_corrected, df_retro_daily, df_observed)
             case "retro-daily":
@@ -194,7 +198,12 @@ class Plots(base.DataSource):
                         [f"2000-{m:02d}-{d:02d}" for m, d in df_doy_corrected.index],
                         format="%Y-%m-%d"
                     )
-                    plot = plot_bias_corrected(df_doy_mean, df_doy_corrected, "Daily Simulated Streamflow", "Corrected Daily Simulated Streamflow", self.river_id)
+                    plot = plot_bias_corrected(
+                        df_doy_mean, df_doy_corrected,
+                        "Daily Simulated Streamflow",
+                        "Corrected Daily Simulated Streamflow",
+                        self.river_id
+                        )
             case "retro-monthly":
                 df_retro_monthly = get_plot_data(self.river_id, self.plot_name)
                 df_retro_monthly['month'] = df_retro_monthly.index.strftime('%m')
@@ -207,8 +216,16 @@ class Plots(base.DataSource):
                     df_retro_monthly_corrected = get_bias_corrected_plot_data(self.river_id, "retro-monthly")
                     df_retro_monthly_corrected['month'] = df_retro_monthly_corrected.index.strftime('%m')
                     df_retro_monthly_corrected = df_retro_monthly_corrected.groupby('month').mean()
-                    df_retro_monthly_corrected= df_retro_monthly_corrected.rename(columns={self.river_id: "Corrected Simulated Streamflow"})
-                    plot = plot_bias_corrected(df_retro_monthly, df_retro_monthly_corrected, "Monthly Simulated Averages", "Corrected Monthly Simulated Averages", self.river_id)
+                    df_retro_monthly_corrected = df_retro_monthly_corrected.rename(
+                        columns={self.river_id: "Corrected Simulated Streamflow"}
+                        )
+                    plot = plot_bias_corrected(
+                        df_retro_monthly,
+                        df_retro_monthly_corrected,
+                        "Monthly Simulated Averages",
+                        "Corrected Monthly Simulated Averages",
+                        self.river_id
+                        )
             case "retro-yearly":
                 if self.bias_correction == "None":
                     df = get_plot_data(self.river_id, self.plot_name)
@@ -227,16 +244,22 @@ class Plots(base.DataSource):
                     plot = plot_yearly_volumes(df_retro_yearly, self.river_id)
                 elif self.bias_correction == "Local" or self.bias_correction == "Global":
                     bias_corrected_yearly = df_retro_daily_corrected.resample('Y').mean()
-                    bias_corrected_yearly = bias_corrected_yearly.rename(columns={"Corrected Simulated Streamflow": self.river_id})
+                    bias_corrected_yearly = bias_corrected_yearly.rename(
+                        columns={"Corrected Simulated Streamflow": self.river_id}
+                        )
                     plot = plot_yearly_volumes(
-                        df_retro_yearly=df_retro_yearly, river_id=self.river_id, df_retro_yearly_corrected=bias_corrected_yearly
+                        df_retro_yearly=df_retro_yearly,
+                        river_id=self.river_id,
+                        df_retro_yearly_corrected=bias_corrected_yearly
                     )
             case "retro-status":
                 df_retro_monthly = get_plot_data(self.river_id, "retro-monthly")
                 if self.bias_correction == "None":
                     plot = plot_retro_annual_status(df_retro_daily, df_retro_monthly, self.river_id)
                 elif self.bias_correction == "Global":
-                    df_retro_daily_corrected = df_retro_daily_corrected.rename(columns={"Corrected Simulated Streamflow": self.river_id})
+                    df_retro_daily_corrected = df_retro_daily_corrected.rename(
+                        columns={"Corrected Simulated Streamflow": self.river_id}
+                        )
                     df_retro_monthly_corrected = get_bias_corrected_plot_data(self.river_id, "retro-monthly")
                     plot = plot_retro_annual_status(
                         df_retro_daily=df_retro_daily_corrected,
@@ -246,8 +269,12 @@ class Plots(base.DataSource):
                     )
                 elif self.bias_correction == "Local":
                     df_retro_monthly_corrected = df_retro_daily_corrected.resample('M').mean()
-                    df_retro_monthly_corrected = df_retro_monthly_corrected.rename(columns={"Corrected Simulated Streamflow": self.river_id})
-                    df_retro_daily_corrected = df_retro_daily_corrected.rename(columns={"Corrected Simulated Streamflow": self.river_id})
+                    df_retro_monthly_corrected = df_retro_monthly_corrected.rename(
+                        columns={"Corrected Simulated Streamflow": self.river_id}
+                        )
+                    df_retro_daily_corrected = df_retro_daily_corrected.rename(
+                        columns={"Corrected Simulated Streamflow": self.river_id}
+                        )
                     plot = plot_retro_annual_status(
                         df_retro_daily=df_retro_daily_corrected,
                         df_retro_monthly=df_retro_monthly_corrected,
@@ -258,7 +285,9 @@ class Plots(base.DataSource):
                 if self.bias_correction == "None":
                     plot = plot_retro_fdc(df_retro_daily, self.river_id)
                 elif self.bias_correction == "Local" or self.bias_correction == "Global":
-                    df_retro_daily_corrected = df_retro_daily_corrected.rename(columns={"Corrected Simulated Streamflow": self.river_id})
+                    df_retro_daily_corrected = df_retro_daily_corrected.rename(
+                        columns={"Corrected Simulated Streamflow": self.river_id}
+                        )
                     plot = plot_retro_fdc(
                         df_simulated=df_retro_daily, river_id=self.river_id, df_corrected=df_retro_daily_corrected
                     )
@@ -276,7 +305,12 @@ class Plots(base.DataSource):
                         df_forecast_ensembles_corrected = geoglows.bias.discharge_transform(
                             df_ensemble, self.river_id
                         )
-                    plot = plot_flood_probabilities(df_ensemble, df_rp, df_forecast_ensembles_corrected, df_rp_corrected)
+                    plot = plot_flood_probabilities(
+                        df_ensemble,
+                        df_rp,
+                        df_forecast_ensembles_corrected,
+                        df_rp_corrected
+                        )
             case "ssi-monthly":
                 if self.bias_correction == "None":
                     plot = plot_ssi_each_month_since_year(
@@ -294,5 +328,3 @@ class Plots(base.DataSource):
                         df_retro_daily, df_retro_daily_corrected
                     )
         return json.loads(plot.to_json())
-    
-    

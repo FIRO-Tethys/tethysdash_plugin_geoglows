@@ -6,6 +6,7 @@ import scipy.stats as stats
 import geoglows
 import getpass
 import pwd
+import math
 
 username = os.environ.get("NGINX_USER", getpass.getuser())
 uid = pwd.getpwnam(username).pw_uid
@@ -16,6 +17,20 @@ PLOTS_CACHE_PATH = os.path.join(module_path, "geoglows_plots_cache")
 if not os.path.exists(PLOTS_CACHE_PATH):
     os.makedirs(PLOTS_CACHE_PATH)
     os.chown(PLOTS_CACHE_PATH, uid, gid)
+
+
+def gumbel1(rp: int, xbar: float, std: float) -> float:
+    """
+    Solves the Gumbel Type 1 distribution
+    Args:
+        rp: return period (years)
+        xbar: average of the dataset
+        std: standard deviation of the dataset
+
+    Returns:
+        float: solution to gumbel distribution
+    """
+    return round(-math.log(-math.log(1 - (1 / rp))) * std * .7797 + xbar - (.45 * std), 2)
 
 
 def get_plot_data(river_id, plot_name='forecast'):
@@ -129,23 +144,60 @@ def get_SSI_data(df_retro):
     return df_result
 
 
-def get_SSI_monthly_data(df, month):
-    monthly_average = df.resample('M').mean()
-    filtered_df = monthly_average[monthly_average.index.month == month].copy()
-    mean = filtered_df.iloc[:, 0].mean()
-    std_dev = filtered_df.iloc[:, 0].std()
-    filtered_df['cumulative_probability'] = filtered_df.iloc[:, 0].apply(lambda x: 1-stats.norm.cdf(x, mean, std_dev))
-    filtered_df['probability_less_than_0.5'] = filtered_df['cumulative_probability'] < 0.5
-    filtered_df['p'] = filtered_df['cumulative_probability']
-    filtered_df.loc[filtered_df['cumulative_probability'] > 0.5, 'p'] = 1 - filtered_df['cumulative_probability']
-    filtered_df['W'] = (-2 * np.log(filtered_df['p'])) ** 0.5
-    C0 = 2.515517
-    C1 = 0.802853
-    C2 = 0.010328
-    d1 = 1.432788
-    d2 = 0.001308
-    d3 = 0.001308
-    filtered_df['SSI'] = filtered_df['W'] - (C0 + C1 * filtered_df['W'] + C2 * filtered_df['W'] ** 2) / \
-        (1 + d1 * filtered_df['W'] + d2 * filtered_df['W'] ** 2 + d3 * filtered_df['W'] ** 3)
-    filtered_df.loc[~filtered_df['probability_less_than_0.5'], 'SSI'] *= -1
-    return filtered_df
+def get_bias_corrected_plot_data(river_id, plot_name='forecast'):
+    """Get newest data for the selected plot.
+
+    Args:
+        river_id (int or str): river id
+        plot_type (str, optional): The plot type. Options are forecast,
+            historical, and return. Defaults to 'forecast'.  # TODO update doc
+
+    Returns:
+        df: the dataframe of the newest plot data
+    """
+
+    match plot_name:
+        case "forecast":
+            sim = geoglows.data.forecast(river_id)
+            df = geoglows.bias.discharge_transform(sim, river_id)
+        case "forecast-stats":
+            sim = geoglows.data.forecast_stats(river_id)
+            df = geoglows.bias.discharge_transform(sim, river_id)
+        case "forecast-ensembles":
+            sim = geoglows.data.forecast_ensembles(river_id)
+            df = geoglows.bias.discharge_transform(sim, river_id)
+        case 'retro-simulation':
+            sim = geoglows.data.retrospective(river_id)
+            df = geoglows.bias.discharge_transform(sim, river_id)
+        case 'return-periods':
+            sim_data = geoglows.data.retro_daily(river_id)
+            df = geoglows.bias.discharge_transform(sim_data=sim_data, river_id=river_id)
+            rps = [2, 5, 10, 25, 50, 100]
+            results = []
+            df = df.rename(columns={str(river_id): 'return_periods'})
+            for column in ["return_periods"]:
+                annual_max_flow_list = df.groupby(df.index.strftime('%Y'))[column].max().values.flatten()
+                xbar = np.mean(annual_max_flow_list)
+                std = np.std(annual_max_flow_list)
+
+                # Compute return periods
+                ret_pers = {'Data Type': column, 'max_simulated': round(np.max(annual_max_flow_list), 2)}
+                ret_pers.update({f'{rp}': round(gumbel1(rp, xbar, std), 2) for rp in rps})
+
+                results.append(ret_pers)
+            df = (pd.DataFrame(results).set_index("Data Type")).transpose()
+            df.columns = df.columns.astype(str)
+            df = df.astype(float).round(2)
+        case 'retro-daily':
+            sim = geoglows.data.retro_daily(river_id)
+            df = geoglows.bias.discharge_transform(sim, river_id)
+        case 'retro-monthly':
+            sim_data = geoglows.data.retro_daily(river_id, skip_log=True)
+            df = geoglows.bias.discharge_transform(sim_data, river_id).resample("MS").mean()
+        case 'retro-yearly':
+            sim_data = geoglows.data.retro_daily(river_id, skip_log=True)
+            df = geoglows.bias.discharge_transform(sim_data, river_id).resample("YS").mean()
+        case _:
+            raise ValueError("plot_name is unacceptable")
+
+    return df

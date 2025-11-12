@@ -1,23 +1,9 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objs as go
-import math
-import datetime
+from datetime import datetime
 import pytz
-
-
-def gumbel1(rp: int, xbar: float, std: float) -> float:
-    """
-    Solves the Gumbel Type 1 distribution
-    Args:
-        rp: return period (years)
-        xbar: average of the dataset
-        std: standard deviation of the dataset
-
-    Returns:
-        float: solution to gumbel distribution
-    """
-    return round(-math.log(-math.log(1 - (1 / rp))) * std * .7797 + xbar - (.45 * std), 2)
+from .plot_data import gumbel1
 
 
 def compute_return_periods(df_corrected: pd.DataFrame, river_id: str, rps=None) -> pd.DataFrame:
@@ -135,7 +121,19 @@ def plot_forecast_bias_correct(
 ) -> go.Figure:
     """
     Plots simulated and bias-corrected forecasted streamflow with optional return periods.
-    Median + uncertainty shading toggle together; return periods remain independent.
+    Median + uncertainty shading toggle together; return periods remain independent and start hidden.
+
+    Parameters
+    ----------
+    df_sim : pd.DataFrame - the simulated forecast data
+    df_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
+    rp_df_sim : pd.DataFrame, optional - return periods for simulated data
+    rp_df_corrected : pd.DataFrame, optional - return periods for bias-corrected data
+    plot_titles : list, optional - additional titles to add to the plot title
+
+    Returns
+    -------
+    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast
     """
 
     scatter_traces = []
@@ -156,7 +154,7 @@ def plot_forecast_bias_correct(
             fillcolor='rgba(65, 105, 225, 0.2)',
             line=dict(color='rgba(65, 105, 225, 0)'),
             showlegend=False,
-            legendgroup='Simulated_line',  # toggled with median
+            legendgroup='Simulated_line',
         ),
     ]
 
@@ -178,9 +176,8 @@ def plot_forecast_bias_correct(
             showlegend=False,
             legendgroup='Bias-Corrected_line',  # toggled with median
         ),
-    ]
+        ]
 
-    # --- Add return period lines ---
     if rp_df_sim is not None:
         traces_sim = _rperiod_scatters(
             df_sim.index[0], df_sim.index[-1],
@@ -188,6 +185,9 @@ def plot_forecast_bias_correct(
             label_prefix='Simulated',  # return periods labeled but independent
             show=True
         )
+        # Start hidden
+        for t in traces_sim:
+            t.visible = "legendonly"
         scatter_traces += traces_sim
 
     if rp_df_corrected is not None:
@@ -197,6 +197,9 @@ def plot_forecast_bias_correct(
             label_prefix='Bias-Corrected',  # return periods labeled but independent
             show=True
         )
+        # Start hidden
+        for t in traces_corr:
+            t.visible = "legendonly"
         scatter_traces += traces_corr
 
     # --- Layout ---
@@ -208,16 +211,25 @@ def plot_forecast_bias_correct(
             'range': [df_sim.index[0], df_sim.index[-1]],
             'hoverformat': '%d %b %Y %X',
         },
-        legend=dict(orientation='h', y=-0.2),
+        legend=dict(
+            orientation='v',
+            yanchor='top',
+            y=1.0,
+            xanchor='left',
+            x=1.02,
+            title='Legend',
+            bgcolor='rgba(255,255,255,0.8)',
+        ),
+        margin=dict(l=60, r=20, t=60, b=80)
     )
 
-    return go.Figure(scatter_traces, layout=layout)
+    return go.Figure(data=scatter_traces, layout=layout)
 
 
 def timezone_label(timezone: str = None):
     timezone = str(timezone) if timezone is not None else 'UTC'
     # get the number of hours the timezone is offset from UTC
-    now = datetime.datetime.now(pytz.timezone(timezone))
+    now = datetime.now(pytz.timezone(timezone))
     utc_offset = now.utcoffset().total_seconds() / 3600
     # convert float number of hours to HH:MM format
     utc_offset = f'{int(utc_offset):+03d}:{int((utc_offset % 1) * 60):02d}'
@@ -239,6 +251,18 @@ def plot_forecast_ensembles_bias_corrected(
         - Bias-Corrected Ensemble
         - Simulated Return Periods (toggleable)
         - Bias-Corrected Return Periods (toggleable)
+
+    Parameters
+    ----------
+    df : pd.DataFrame - the simulated forecast ensemble data
+    df_bias_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
+    rp_df : pd.DataFrame, optional - return periods for simulated data, the original return periods
+    rp_df_bias_corrected : pd.DataFrame, optional - the new calculated return periods for bias corrected data
+    plot_titles : list, optional - additional titles to add to the plot title
+
+    Returns
+    -------
+    go.Figure - the plotly figure object with a plot of both the bias corrected and the simulated forecast ensemble
     """
 
     scatter_plots = []
@@ -340,7 +364,20 @@ def plot_forecast_stats_bias_corrected(
         - Bias-Corrected
         - Simulated Return Periods
         - Bias-Corrected Return Periods
+    Parameters
+    ----------
+    df : pd.DataFrame - the simulated forecast stats data
+    df_bias_corrected : pd.DataFrame - the bias-corrected version of the above dataframe
+    rp_df : pd.DataFrame, optional - return periods for simulated data, the original return periods
+    rp_df_bias_corrected : pd.DataFrame, optional -  the new calculated return periods for bias corrected data
+    plot_titles : list, optional - additional titles to add to the plot title
+    show_maxmin : bool, optional - whether to show the max/min envelope (default is False)
+
+    Returns
+    -------
+    go.Figure - the plotly figure object with a plot of the bias corrected and the simulated forecast stats
     """
+
     scatter_plots = []
     max_flows = []
 
@@ -348,6 +385,7 @@ def plot_forecast_stats_bias_corrected(
     enddate = df.index[-1]
 
     def process_stats(df_input, label_prefix, color_median='red', color_avg='blue'):
+        """Creates all traces for a single dataset (simulated or bias-corrected)."""
         dates_stats = df_input['flow_avg'].dropna().index.tolist()
         dates_hires = df_input['high_res'].dropna().index.tolist()
         flow_max = df_input['flow_max'].dropna().tolist()
@@ -371,51 +409,18 @@ def plot_forecast_stats_bias_corrected(
             legendgroup=f"{label_prefix} Boundaries",
             fill='toself',
             visible=maxmin_visible,
-            line=dict(color='lightblue', dash='dash')
-        ))
-        traces.append(go.Scatter(
-            name=f"{label_prefix} Maximum",
-            x=dates_stats,
-            y=flow_max,
-            legendgroup=f"{label_prefix} Boundaries",
-            showlegend=False,
-            visible=maxmin_visible,
-            line=dict(color='darkblue', dash='dash')
-        ))
-        traces.append(go.Scatter(
-            name=f"{label_prefix} Minimum",
-            x=dates_stats,
-            y=flow_min,
-            legendgroup=f"{label_prefix} Boundaries",
-            showlegend=False,
-            visible=maxmin_visible,
-            line=dict(color='darkblue', dash='dash')
+            line=dict(color='lightgray', dash='dash')
         ))
 
         # Percentile envelope
         traces.append(go.Scatter(
-            name=f"{label_prefix} 25-75 Percentile Flow",
+            name=f"{label_prefix} 25–75 Percentile Flow",
             x=dates_stats + dates_stats[::-1],
             y=flow_75 + flow_25[::-1],
             legendgroup=f"{label_prefix} Percentiles",
             fill='toself',
-            line=dict(color='lightgreen')
-        ))
-        traces.append(go.Scatter(
-            name=f"{label_prefix} 75%",
-            x=dates_stats,
-            y=flow_75,
-            legendgroup=f"{label_prefix} Percentiles",
-            showlegend=False,
-            line=dict(color='green')
-        ))
-        traces.append(go.Scatter(
-            name=f"{label_prefix} 25%",
-            x=dates_stats,
-            y=flow_25,
-            legendgroup=f"{label_prefix} Percentiles",
-            showlegend=False,
-            line=dict(color='green')
+            fillcolor='rgba(0,128,0,0.15)' if 'Simulated' in label_prefix else 'rgba(255,165,0,0.15)',
+            line=dict(color='rgba(0,0,0,0)')
         ))
 
         # High-resolution forecast
@@ -423,7 +428,7 @@ def plot_forecast_stats_bias_corrected(
             name=f"{label_prefix} High-Res Forecast",
             x=dates_hires,
             y=high_res,
-            line=dict(color='black'),
+            line=dict(color='black', width=1.5),
             legendgroup=f"{label_prefix} Forecast"
         ))
 
@@ -432,43 +437,52 @@ def plot_forecast_stats_bias_corrected(
             name=f"{label_prefix} Average Flow",
             x=dates_stats,
             y=flow_avg,
-            line=dict(color=color_avg),
+            line=dict(color=color_avg, width=2),
             legendgroup=f"{label_prefix} Forecast"
         ))
         traces.append(go.Scatter(
             name=f"{label_prefix} Median Flow",
             x=dates_stats,
             y=flow_med,
-            line=dict(color=color_median),
+            line=dict(color=color_median, width=2),
             legendgroup=f"{label_prefix} Forecast"
         ))
 
         return traces, y_max_local
 
-    # --- Process simulated ---
-    traces_sim, y_max_sim = process_stats(df, 'Simulated')
+    # --- Process simulated (default red/blue palette) ---
+    traces_sim, y_max_sim = process_stats(
+        df, 'Simulated', color_median='red', color_avg='blue'
+    )
     scatter_plots += traces_sim
 
-    # --- Process bias-corrected ---
-    traces_bc, y_max_bc = process_stats(df_bias_corrected, 'Bias-Corrected')
+    # --- Process bias-corrected (orange/green palette) ---
+    traces_bc, y_max_bc = process_stats(
+        df_bias_corrected, 'Bias-Corrected', color_median='darkorange', color_avg='green'
+    )
     scatter_plots += traces_bc
 
     y_max = max(y_max_sim, y_max_bc)
 
-    # --- Return periods (toggleable) ---
-    def add_rp_traces(rp_df_input, label_prefix):
+    # --- Return periods (toggleable, off by default) ---
+    def add_rp_traces(rp_df_input, label_prefix, color):
         traces = _rperiod_scatters(
             startdate, enddate, rp_df_input, y_max, label_prefix=label_prefix, show=True
         )
         for t in traces:
-            t.update(showlegend=True, visible='legendonly', legendgroup=f"{label_prefix} Return Periods")
+            t.update(
+                showlegend=True,
+                visible='legendonly',  # start hidden but toggleable
+                legendgroup=f"{label_prefix} Return Periods",
+                line=dict(color=color, dash='dot')
+            )
         return traces
 
     if rp_df is not None:
-        scatter_plots += add_rp_traces(rp_df, 'Simulated')
+        scatter_plots += add_rp_traces(rp_df, 'Simulated', 'blue')
 
     if rp_df_bias_corrected is not None:
-        scatter_plots += add_rp_traces(rp_df_bias_corrected, 'Bias-Corrected')
+        scatter_plots += add_rp_traces(rp_df_bias_corrected, 'Bias-Corrected', 'darkorange')
 
     # --- Layout ---
     layout = go.Layout(
@@ -489,6 +503,7 @@ def plot_forecast_stats_bias_corrected(
             title='Legend',
             bgcolor='rgba(255,255,255,0.8)'
         ),
+        margin=dict(l=60, r=180, t=60, b=60)
     )
 
     return go.Figure(scatter_plots, layout=layout)
@@ -595,3 +610,104 @@ def plot_annual_averages_bias_corrected(
     )
 
     return go.Figure(scatter_plots, layout=layout)
+
+
+def plot_retro_simulation_corrected(
+    df_retro_daily_og, df_retro_daily_corrected,
+    df_retro_monthly_og, df_retro_monthly_corrected,
+    river_id,
+):
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_retro_daily_og.index,
+        y=df_retro_daily_og[river_id],
+        mode='lines',
+        name='Daily Average Simulation'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_retro_daily_corrected.index,
+        y=df_retro_daily_corrected["Corrected Simulated Streamflow"],
+        mode='lines',
+        name='Daily Average Bias Corrected'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_retro_monthly_og.index,
+        y=df_retro_monthly_og[river_id],
+        mode='lines',
+        name='Monthly Average Simulation',
+        line=dict(color='rgb(0, 166, 255)'),
+        visible='legendonly'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_retro_monthly_corrected.index,
+        y=df_retro_monthly_corrected[river_id],
+        mode='lines',
+        name='Monthly Average Corrected',
+        line=dict(color='rgb(0, 166, 255)'),
+        visible='legendonly'
+    ))
+
+    fig.update_layout(
+        title=f'Retrospective Simulation for River: {river_id}',
+        # legend=dict(orientation='h', x=0, y=0.9),
+        hovermode='x',
+        yaxis=dict(
+            title="Discharge (m³/s)",
+            range=[0, None]
+        ),
+        xaxis=dict(
+            title="Date (UTC +00:00)",
+            type='date',
+            # autorange=False,
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1 Year", step="year", stepmode="backward"),
+                    dict(count=5, label="5 Years", step="year", stepmode="backward"),
+                    dict(count=10, label="10 Years", step="year", stepmode="backward"),
+                    dict(count=30, label="30 Years", step="year", stepmode="backward"),
+                    dict(count=len(df_retro_daily_og.index), label="All", step="day")
+                ]
+            ),
+            rangeslider=dict(visible=True)
+        )
+    )
+
+    return fig
+
+
+def plot_bias_corrected(df_og, df_corrected, sim_name, bias_name, river_id):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_og.index,
+        y=df_og[river_id],
+        mode='lines',
+        name=sim_name
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_corrected.index,
+        y=df_corrected["Corrected Simulated Streamflow"],
+        mode='lines',
+        name=bias_name
+    ))
+
+    fig.update_layout(
+        title=f'Retrospective Simulation for River: {river_id}',
+        # legend=dict(orientation='h', x=0, y=0.9),
+        hovermode='x',
+        yaxis=dict(
+            title="Discharge (m³/s)",
+            range=[0, None]
+        ),
+        xaxis=dict(
+            title="Date (UTC +00:00)",
+            type='date',
+            # autorange=False,
+        )
+    )
+
+    return fig

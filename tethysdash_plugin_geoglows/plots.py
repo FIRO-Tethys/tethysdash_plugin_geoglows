@@ -90,11 +90,13 @@ class Plots(base.DataSource):
                 df_retro_daily_corrected.rename(
                     columns={self.river_id: "Corrected Simulated Streamflow"}, inplace=True
                     )
+                if self.plot_name == "bias-performance":
+                    raise VisualizationError("Bias performance plot requires bias correction option to be Local.")
             df_rp_corrected = compute_return_periods(df_retro_daily_corrected, self.river_id)
         elif self.bias_correction == "None":
             df_retro_daily_corrected = df_retro_daily
             if self.plot_name == "bias-performance":
-                raise VisualizationError("Bias performance plot requires bias correction option to be Local or Global.")
+                raise VisualizationError("Bias performance plot requires bias correction option to be Local.")
 
         match self.plot_name:
             case "forecast":

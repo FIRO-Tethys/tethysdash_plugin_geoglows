@@ -1,11 +1,8 @@
-import os
 from datetime import datetime, timezone
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
 import geoglows
-import getpass
-import pwd
 import math
 
 
@@ -36,89 +33,68 @@ def get_plot_data(river_id, plot_name="forecast"):
     Returns:
         df: the dataframe of the newest plot data
     """
-    from tethysapp.tethysdash.app import App
+    from tethysdash_plugin_geoglows.utils.cache import get_cache
 
-    username = os.environ.get("NGINX_USER", getpass.getuser())
-    uid = pwd.getpwnam(username).pw_uid
-    gid = pwd.getpwnam(username).pw_gid
-
-    workspace_path = App.get_app_workspace()
-    PLOTS_CACHE_PATH = os.path.join(workspace_path.path, "geoglows_plots_cache")
-    if not os.path.exists(PLOTS_CACHE_PATH):
-        os.makedirs(PLOTS_CACHE_PATH)
-        os.chown(PLOTS_CACHE_PATH, uid, gid)
-
-    files = os.listdir(PLOTS_CACHE_PATH)
-    cache_file = None
-    for file in files:
-        if file.startswith(f"{plot_name}-{river_id}"):
-            cache_file = file
-
-    # Check if we can use the cached data, if not, delete it
+    # Cache backend is workspace (default) or S3, per GEOGLOWS_CACHE_BACKEND. The cache holds one
+    # daily CSV per (plot_name, river_id); reuse it when today's data is already cached.
+    cache = get_cache()
     current_date = datetime.now(timezone.utc).strftime("%Y%m%d")
-    need_new_data, cached_data_path = True, None
-    if cache_file:
-        cached_date = cache_file.split("-")[-1].split(".")[0]
-        need_new_data = current_date != cached_date
-        cached_data_path = os.path.join(PLOTS_CACHE_PATH, cache_file)
-    new_data_path = os.path.join(
-        PLOTS_CACHE_PATH, f"{plot_name}-{river_id}-{current_date}.csv"
-    )
+    cached_date = cache.latest_date(plot_name, river_id)
+    need_new_data = cached_date != current_date
+    cached_src = None if need_new_data else cache.open(plot_name, river_id, cached_date)
 
     match plot_name:
         case "forecast":
             if need_new_data:
                 df = geoglows.data.forecast(river_id)
             else:
-                df = pd.read_csv(cached_data_path, parse_dates=["time"], index_col=[0])
+                df = pd.read_csv(cached_src, parse_dates=["time"], index_col=[0])
         case "forecast-stats":
             if need_new_data:
                 df = geoglows.data.forecast_stats(river_id)
             else:
-                df = pd.read_csv(cached_data_path, parse_dates=["time"], index_col=[0])
+                df = pd.read_csv(cached_src, parse_dates=["time"], index_col=[0])
         case "forecast-ensembles":
             if need_new_data:
                 df = geoglows.data.forecast_ensembles(river_id)
             else:
-                df = pd.read_csv(cached_data_path, parse_dates=["time"], index_col=[0])
+                df = pd.read_csv(cached_src, parse_dates=["time"], index_col=[0])
         case "retro-simulation":
             if need_new_data:
                 df = geoglows.data.retrospective(river_id)
             else:
-                df = pd.read_csv(cached_data_path, parse_dates=["time"], index_col=[0])
+                df = pd.read_csv(cached_src, parse_dates=["time"], index_col=[0])
                 df.columns.name = "rivid"
                 df.columns = df.columns.astype("int")
         case "return-periods":
             if need_new_data:
                 df = geoglows.data.return_periods(river_id)
             else:
-                df = pd.read_csv(cached_data_path, index_col=[0])
+                df = pd.read_csv(cached_src, index_col=[0])
                 df.columns = df.columns.astype("int")
         case "retro-daily":
             if need_new_data:
                 df = geoglows.data.retro_daily(river_id)
             else:
-                df = pd.read_csv(cached_data_path, parse_dates=["time"], index_col=[0])
+                df = pd.read_csv(cached_src, parse_dates=["time"], index_col=[0])
                 df.columns = df.columns.astype("int")
         case "retro-monthly":
             if need_new_data:
                 df = geoglows.data.retro_monthly(river_id)
             else:
-                df = pd.read_csv(cached_data_path, parse_dates=["time"], index_col=[0])
+                df = pd.read_csv(cached_src, parse_dates=["time"], index_col=[0])
                 df.columns = df.columns.astype("int")
         case "retro-yearly":
             if need_new_data:
                 df = geoglows.data.retro_yearly(river_id)
             else:
-                df = pd.read_csv(cached_data_path, parse_dates=["time"], index_col=[0])
+                df = pd.read_csv(cached_src, parse_dates=["time"], index_col=[0])
                 df.columns = df.columns.astype("int")
         case _:
             raise ValueError("plot_name is unacceptable")
 
     if need_new_data:
-        df.to_csv(new_data_path)
-        if cached_data_path:
-            os.remove(cached_data_path)
+        cache.write(plot_name, river_id, current_date, df)
 
     return df
 

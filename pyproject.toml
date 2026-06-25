@@ -19,6 +19,10 @@ dependencies = [
     "geoglows>=1.7.0"
 ]
 
+[project.optional-dependencies]
+# Required only for the S3 cache backend (GEOGLOWS_CACHE_BACKEND=s3).
+s3 = ["boto3>=1.26"]
+
 [project.urls]
 Homepage = "https://github.com/FIRO-Tethys/tethysdash_plugin_geoglows"
 Issues = "https://github.com/FIRO-Tethys/tethysdash_plugin_geoglows/issues"

@@ -68,7 +68,9 @@ def get_plot_data(river_id, plot_name="forecast"):
                 df.columns = df.columns.astype("int")
         case "return-periods":
             if need_new_data:
-                df = geoglows.data.return_periods(river_id)
+                # geoglows-v2 no longer publishes the "logpearson3" return-period variable (the
+                # client default); request "gumbel", which the dataset does provide.
+                df = geoglows.data.return_periods(river_id, distribution="gumbel")
             else:
                 df = pd.read_csv(cached_src, index_col=[0])
                 df.columns = df.columns.astype("int")

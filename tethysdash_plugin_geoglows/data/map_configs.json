@@ -266,7 +266,7 @@
               "name": "Geoglows Streamflow",
               "minZoomQuery": "17",
               "snapToFeatures": true,
-              "querySublayer": 0,
+              "snapSublayer": 0,
               "source": {
                 "type": "ESRI Image and Map Service",
                 "props": {

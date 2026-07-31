@@ -16,7 +16,8 @@ dependencies = [
     "intake>=0.6.6",
     "pandas>=2.2.3",
     "requests>=2.32.3",
-    "geoglows>=1.7.0"
+    "geoglows>=1.7.0",
+    "pyproj>=3.0"
 ]
 
 [project.urls]
@@ -36,3 +37,10 @@ include = ["*"]
 
 [tool.setuptools.package-data]
 "tethysdash_plugin_geoglows" = ["static/*.png", "data/*.json", "static/*.json", "static/*.geojson"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: live tests that hit the geoglows data APIs (network, slow); run with -m integration",
+]

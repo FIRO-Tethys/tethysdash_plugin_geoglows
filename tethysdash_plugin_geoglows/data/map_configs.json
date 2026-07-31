@@ -264,7 +264,9 @@
             "type": "ImageLayer",
             "props": {
               "name": "Geoglows Streamflow",
-              "minZoomQuery": "15",
+              "minZoomQuery": "17",
+              "snapToFeatures": true,
+              "snapSublayer": 0,
               "source": {
                 "type": "ESRI Image and Map Service",
                 "props": {

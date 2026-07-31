@@ -67,6 +67,38 @@ class Plots(base.DataSource):
         self.bias_correction = bias_correction
         super(Plots, self).__init__(metadata=metadata)
 
+    def _parse_observed_historical_data(self):
+        """Parse the uploaded observed record into a validated DataFrame.
+
+        The value arrives as a JSON string of columns. Some frontends deliver it
+        double-encoded (a JSON string of a JSON string), so unwrap one level when
+        needed. Any malformed or wrong-shape payload raises a friendly
+        VisualizationError rather than a cryptic pandas constructor error.
+        """
+        required_columns = ("Datetime", "Streamflow (m3/s)")
+        try:
+            parsed = json.loads(self.observed_historical_data)
+            if isinstance(parsed, str):  # double-encoded: unwrap one level
+                parsed = json.loads(parsed)
+        except (TypeError, ValueError):
+            parsed = None
+        if not isinstance(parsed, dict) or not all(c in parsed for c in required_columns):
+            raise VisualizationError(
+                "Observed historical data must be JSON with 'Datetime' and "
+                "'Streamflow (m3/s)' columns, or change the bias correction option."
+            )
+        try:
+            df_observed = pd.DataFrame(parsed).replace("", np.nan)\
+                .assign(Datetime=lambda x: x['Datetime'].astype('datetime64[ns]')).set_index('Datetime')
+            df_observed["Streamflow (m3/s)"] = df_observed["Streamflow (m3/s)"].astype(float)
+            df_observed.index = df_observed.index.tz_localize("UTC")
+        except (KeyError, ValueError, TypeError) as exc:
+            raise VisualizationError(
+                f"Could not parse observed historical data: {exc}. Expected JSON "
+                "columns 'Datetime' and 'Streamflow (m3/s)'."
+            )
+        return df_observed
+
     def read(self):
         df_rp = get_plot_data(self.river_id, "return-periods")
         df_observed, df_rp_corrected = None, None
@@ -74,16 +106,7 @@ class Plots(base.DataSource):
         df_retro_daily = get_plot_data(self.river_id, "retro-daily")
         if self.bias_correction != "None":
             if self.bias_correction == "Local":
-                try:
-                    dict_bias = json.loads(self.observed_historical_data)
-                except Exception:
-                    raise VisualizationError(
-                        "Please upload a valid CSV file for observed historical  or change bias correction option."
-                        )
-                df_observed = pd.DataFrame(dict_bias).replace("", np.nan)\
-                    .assign(Datetime=lambda x: x['Datetime'].astype('datetime64[ns]')).set_index('Datetime')
-                df_observed["Streamflow (m3/s)"] = df_observed["Streamflow (m3/s)"].astype(float)
-                df_observed.index = df_observed.index.tz_localize("UTC")
+                df_observed = self._parse_observed_historical_data()
                 df_retro_daily_corrected = geoglows.bias.correct_historical(df_retro_daily, df_observed)
             elif self.bias_correction == "Global":
                 df_retro_daily_corrected = geoglows.bias.discharge_transform(df_retro_daily, self.river_id)

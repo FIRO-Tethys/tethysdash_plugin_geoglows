@@ -1,20 +1,49 @@
 from intake.source import base
-import geoglows
-import pandas as pd
-import numpy as np
-from .utils.plot_data import get_plot_data, get_bias_corrected_plot_data
-from .utils.simu_plots import (
-    plot_retro_simulation, plot_retro_annual_status, plot_yearly_volumes,
-    plot_retro_fdc, plot_flood_probabilities, plot_ssi_each_month_since_year, plot_ssi_all_months
-)
-from .utils.bias_plots import (
-    plot_forecast_bias_correct, compute_return_periods,
-    plot_forecast_ensembles_bias_corrected, plot_forecast_stats_bias_corrected,
-    plot_annual_averages_bias_corrected, plot_retro_simulation_corrected,
-    plot_bias_corrected
-)
+import importlib
 import json
 from tethysapp.tethysdash.exceptions import VisualizationError
+
+
+# Heavy deps load on first use (at render), not at import, so plugin discovery
+# — which only reads this class's attributes — stays fast. These proxies keep
+# the same module-level names that read() and the tests reference.
+class _Lazy:
+    def __init__(self, module, attr=None):
+        self._module, self._attr, self._obj = module, attr, None
+
+    def _resolve(self):
+        if self._obj is None:
+            mod = importlib.import_module(self._module)
+            self._obj = getattr(mod, self._attr) if self._attr else mod
+        return self._obj
+
+    def __getattr__(self, name):
+        return getattr(self._resolve(), name)
+
+    def __call__(self, *args, **kwargs):
+        return self._resolve()(*args, **kwargs)
+
+
+geoglows = _Lazy("geoglows")
+pd = _Lazy("pandas")
+np = _Lazy("numpy")
+_U = "tethysdash_plugin_geoglows.utils."
+get_plot_data = _Lazy(_U + "plot_data", "get_plot_data")
+get_bias_corrected_plot_data = _Lazy(_U + "plot_data", "get_bias_corrected_plot_data")
+plot_retro_simulation = _Lazy(_U + "simu_plots", "plot_retro_simulation")
+plot_retro_annual_status = _Lazy(_U + "simu_plots", "plot_retro_annual_status")
+plot_yearly_volumes = _Lazy(_U + "simu_plots", "plot_yearly_volumes")
+plot_retro_fdc = _Lazy(_U + "simu_plots", "plot_retro_fdc")
+plot_flood_probabilities = _Lazy(_U + "simu_plots", "plot_flood_probabilities")
+plot_ssi_each_month_since_year = _Lazy(_U + "simu_plots", "plot_ssi_each_month_since_year")
+plot_ssi_all_months = _Lazy(_U + "simu_plots", "plot_ssi_all_months")
+plot_forecast_bias_correct = _Lazy(_U + "bias_plots", "plot_forecast_bias_correct")
+compute_return_periods = _Lazy(_U + "bias_plots", "compute_return_periods")
+plot_forecast_ensembles_bias_corrected = _Lazy(_U + "bias_plots", "plot_forecast_ensembles_bias_corrected")
+plot_forecast_stats_bias_corrected = _Lazy(_U + "bias_plots", "plot_forecast_stats_bias_corrected")
+plot_annual_averages_bias_corrected = _Lazy(_U + "bias_plots", "plot_annual_averages_bias_corrected")
+plot_retro_simulation_corrected = _Lazy(_U + "bias_plots", "plot_retro_simulation_corrected")
+plot_bias_corrected = _Lazy(_U + "bias_plots", "plot_bias_corrected")
 
 
 class Plots(base.DataSource):

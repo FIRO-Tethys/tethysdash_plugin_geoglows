@@ -1,6 +1,5 @@
 import os
 import json
-from pyproj import Transformer
 
 
 module_path = os.path.dirname(__file__)
@@ -42,6 +41,8 @@ def convert_4326_to_3857(lon, lat):
     Returns:
         (x, y): Tuple of coordinates in meters.
     """
+    from pyproj import Transformer
+
     transformer = Transformer.from_crs(4326, 3857, always_xy=True)
     x, y = transformer.transform(lon, lat)
     return x, y
